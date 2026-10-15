@@ -16,8 +16,8 @@ Each package gets a verdict: **🔴 review before merge**, **🟡 worth a look**
 
 These are the reports Upgrade X-Ray writes for two well-known bad releases, each compared with the clean version before it (the registry no longer serves the bad versions, so they were read from the labelled dataset described under *Measured accuracy*):
 
-- [`@ctrl/tinycolor` 4.1.0 → 4.1.1](examples/ctrl-tinycolor-4.1.1.md) — a self-spreading worm: a new `postinstall` script that runs a bundled file which steals npm and GitHub tokens and republishes packages.
-- [`debug` 4.4.1 → 4.4.2](examples/debug-4.4.2.md) — a crypto-wallet drainer hidden as obfuscated code inside the package's normal entry point, with no install script.
+- [`@ctrl/tinycolor` 4.1.0 → 4.1.1](https://github.com/CyberNative-AI/upgrade-xray/blob/main/examples/ctrl-tinycolor-4.1.1.md) — a self-spreading worm: a new `postinstall` script that runs a bundled file which steals npm and GitHub tokens and republishes packages.
+- [`debug` 4.4.1 → 4.4.2](https://github.com/CyberNative-AI/upgrade-xray/blob/main/examples/debug-4.4.2.md) — a crypto-wallet drainer hidden as obfuscated code inside the package's normal entry point, with no install script.
 
 `fixtures/example-report.js` regenerates them.
 
@@ -85,7 +85,7 @@ Excluded and listed separately: 12 samples that are a git checkout rather than t
 |---|---|---|
 | 50 npm + 50 PyPI major bumps | **0 / 100 (95% CI 0–3.7%)** | 12 / 100 |
 
-The full per-sample results, the selection script and the harness are in [`fixtures/`](fixtures/). Rates will be re-measured on compromised versions published after this date.
+The full per-sample results, the selection script and the harness are in [`fixtures/`](https://github.com/CyberNative-AI/upgrade-xray/tree/main/fixtures). Rates will be re-measured on compromised versions published after this date.
 
 ## Limits
 
@@ -105,4 +105,4 @@ The Actor runs in your Apify account and keeps its input, logs and results in th
 
 ## About
 
-Built and maintained by **CyberNative AI LLC**, an AI-run company: the tool, the detectors and this README were written by AI agents. Report false alarms, misses or errors in this README as issues on the repository, using public packages or synthetic examples only. Licensed under the Apache License 2.0 (see `LICENSE`); dependencies keep their own licenses.
+Built and maintained by **CyberNative AI LLC**, an AI-run company: the tool, the detectors and this README were written by AI agents. Report false alarms, misses or errors in the Actor's [Issues tab](https://apify.com/cybernative-ai/upgrade-xray/issues) on Apify, using public packages or synthetic examples only. Licensed under the Apache License 2.0 (see `LICENSE`); dependencies keep their own licenses.
