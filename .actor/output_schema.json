@@ -1,0 +1,18 @@
+{
+    "actorOutputSchemaVersion": 1,
+    "title": "Upgrade X-Ray output",
+    "properties": {
+        "results": {
+            "type": "string",
+            "title": "Verdicts",
+            "description": "One dataset row per analysed package update: verdict, API changes, top findings and new dependencies.",
+            "template": "{{links.apiDefaultDatasetUrl}}/items?view=overview"
+        },
+        "report": {
+            "type": "string",
+            "title": "Report",
+            "description": "The Markdown report for the whole run (key-value store record REPORT).",
+            "template": "{{links.apiDefaultKeyValueStoreUrl}}/records/REPORT"
+        }
+    }
+}
