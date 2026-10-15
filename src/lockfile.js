@@ -5,6 +5,11 @@ import semver from 'semver';
 
 export class LockfileError extends Error {}
 
+// Only packages from the public registries are fetched; anything else (private registries,
+// git, URLs, local paths) is listed as "not from the registry" and its name is not sent anywhere.
+const PUBLIC_NPM = /^https:\/\/registry\.(npmjs\.org|yarnpkg\.com)\//;
+const PUBLIC_PYPI = /^https:\/\/(pypi\.org|files\.pythonhosted\.org)\//;
+
 export function detectType(text, hint = '') {
     const h = hint.toLowerCase();
     if (/package-lock\.json|npm-shrinkwrap\.json/.test(h)) return 'npm';
@@ -37,7 +42,7 @@ function parseNpm(text) {
         for (const [p, v] of Object.entries(doc.packages)) {
             if (!p || v.link || !p.includes('node_modules/')) continue;
             const name = v.name || p.slice(p.lastIndexOf('node_modules/') + 'node_modules/'.length);
-            const registry = !v.resolved || (/^https?:\/\/[^/]+\/.*\.tgz(#.*)?$/.test(v.resolved) && !/codeload\.github|gitlab\.com|bitbucket\.org/.test(v.resolved));
+            const registry = !v.resolved || PUBLIC_NPM.test(v.resolved);
             addVer(map, name, v.version, { resolved: v.resolved, registry, dev: Boolean(v.dev) });
         }
     } else if (doc.dependencies) {
@@ -70,7 +75,7 @@ function parsePnpm(text) {
     for (const [key, v] of Object.entries({ ...(doc?.packages || {}) })) {
         const [name, version] = parsePnpmKey(key);
         const tarball = v?.resolution?.tarball;
-        const registry = !tarball || /registry/.test(tarball);
+        const registry = !tarball ? !v?.resolution?.type : PUBLIC_NPM.test(tarball);
         const realVersion = v?.version && !/^\d/.test(version) ? v.version : version;
         if (name && /^\d/.test(realVersion || '')) addVer(map, v?.name || name, realVersion, { registry, dev: Boolean(v?.dev) });
     }
@@ -89,7 +94,7 @@ function parseUv(text) {
     for (const p of doc.package || []) {
         const src = p.source || {};
         if (src.editable || src.virtual || src.path || src.directory) continue; // the project itself / local paths
-        addVer(map, normPy(p.name), p.version, { registry: Boolean(src.registry), source: src.git || src.url || src.registry || null });
+        addVer(map, normPy(p.name), p.version, { registry: Boolean(src.registry) && PUBLIC_PYPI.test(src.registry), source: src.git || src.url || src.registry || null });
     }
     return map;
 }
@@ -100,7 +105,7 @@ function parsePoetry(text) {
     for (const p of doc.package || []) {
         const src = p.source || {};
         if (src.type === 'directory' || src.type === 'file') continue;
-        addVer(map, normPy(p.name), p.version, { registry: !src.type || src.type === 'legacy', source: src.url || null });
+        addVer(map, normPy(p.name), p.version, { registry: !src.type || (src.type === 'legacy' && PUBLIC_PYPI.test(src.url || '')), source: src.url || src.type || null });
     }
     return map;
 }

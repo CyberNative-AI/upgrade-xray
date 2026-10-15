@@ -1,0 +1,269 @@
+{
+ "dev": {
+  "malicious_samples": 390,
+  "not_comparable": {
+   "code identical to clean version": 2,
+   "not-an-artifact (git checkout)": 1
+  },
+  "clean_version_unavailable": 7,
+  "updates": {
+   "n": 361,
+   "review": 359,
+   "notice": 0,
+   "ci95": [
+    0.9800274356153889,
+    0.9984794013242585
+   ]
+  },
+  "updates_by_ecosystem": {
+   "npm": {
+    "n": 358,
+    "review": 356
+   },
+   "pypi": {
+    "n": 3,
+    "review": 3
+   }
+  },
+  "updates_first_version_per_package": {
+   "n": 242,
+   "review": 241
+  },
+  "new_packages": {
+   "n": 19,
+   "review": 19
+  },
+  "by_discovery_month": {
+   "2024-12": {
+    "n": 6,
+    "review": 6
+   },
+   "2025-03": {
+    "n": 1,
+    "review": 0
+   },
+   "2025-06": {
+    "n": 4,
+    "review": 3
+   },
+   "2025-07": {
+    "n": 3,
+    "review": 3
+   },
+   "2025-08": {
+    "n": 2,
+    "review": 2
+   },
+   "2025-09": {
+    "n": 105,
+    "review": 105
+   },
+   "2025-11": {
+    "n": 105,
+    "review": 105
+   },
+   "2026-03": {
+    "n": 13,
+    "review": 13
+   },
+   "2026-04": {
+    "n": 14,
+    "review": 14
+   },
+   "2026-05": {
+    "n": 57,
+    "review": 57
+   },
+   "2026-06": {
+    "n": 50,
+    "review": 50
+   },
+   "2026-10": {
+    "n": 1,
+    "review": 1
+   }
+  },
+  "high_kinds_in_hits": {
+   "install-script": 289,
+   "install-script-capability": 256,
+   "obfuscation": 176,
+   "credential-path": 154,
+   "secret-harvest": 148,
+   "exfil-endpoint": 135,
+   "self-publish": 135,
+   "persistence": 119,
+   "new-dependency": 54,
+   "crypto-wallet": 45,
+   "encoded-exec": 25,
+   "binary-executable": 2
+  },
+  "misses": [
+   "npm:@rxap/ngx-bootstrap 19.0.2->19.0.3 (clean)",
+   "npm:@rxap/ngx-bootstrap 19.0.2->19.0.4 (clean)"
+  ],
+  "benign": {
+   "n": 50,
+   "errors": [],
+   "review": 0,
+   "notice": 8,
+   "clean": 42,
+   "ci95_review": [
+    0.0,
+    0.07135003417431873
+   ],
+   "by_ecosystem": {
+    "npm": {
+     "n": 25,
+     "review": 0
+    },
+    "pypi": {
+     "n": 25,
+     "review": 0
+    }
+   },
+   "false_alarms": []
+  }
+ },
+ "holdout": {
+  "malicious_samples": 1087,
+  "not_comparable": {
+   "no code in sample": 2,
+   "not-an-artifact (git checkout)": 12
+  },
+  "clean_version_unavailable": 28,
+  "updates": {
+   "n": 998,
+   "review": 988,
+   "notice": 4,
+   "ci95": [
+    0.9816538421629297,
+    0.9945483838177044
+   ]
+  },
+  "updates_by_ecosystem": {
+   "npm": {
+    "n": 988,
+    "review": 982
+   },
+   "pypi": {
+    "n": 10,
+    "review": 6
+   }
+  },
+  "updates_first_version_per_package": {
+   "n": 703,
+   "review": 698
+  },
+  "new_packages": {
+   "n": 47,
+   "review": 43
+  },
+  "by_discovery_month": {
+   "2024-12": {
+    "n": 3,
+    "review": 2
+   },
+   "2025-04": {
+    "n": 5,
+    "review": 0
+   },
+   "2025-06": {
+    "n": 15,
+    "review": 15
+   },
+   "2025-07": {
+    "n": 18,
+    "review": 18
+   },
+   "2025-08": {
+    "n": 5,
+    "review": 5
+   },
+   "2025-09": {
+    "n": 281,
+    "review": 281
+   },
+   "2025-11": {
+    "n": 301,
+    "review": 301
+   },
+   "2026-02": {
+    "n": 1,
+    "review": 1
+   },
+   "2026-03": {
+    "n": 60,
+    "review": 59
+   },
+   "2026-04": {
+    "n": 14,
+    "review": 12
+   },
+   "2026-05": {
+    "n": 159,
+    "review": 158
+   },
+   "2026-06": {
+    "n": 131,
+    "review": 131
+   },
+   "2026-09": {
+    "n": 4,
+    "review": 4
+   },
+   "2026-10": {
+    "n": 1,
+    "review": 1
+   }
+  },
+  "high_kinds_in_hits": {
+   "install-script": 803,
+   "install-script-capability": 733,
+   "obfuscation": 484,
+   "secret-harvest": 433,
+   "credential-path": 430,
+   "self-publish": 401,
+   "exfil-endpoint": 392,
+   "persistence": 361,
+   "new-dependency": 176,
+   "crypto-wallet": 145,
+   "encoded-exec": 43,
+   "binary-executable": 26,
+   "startup-hook": 5
+  },
+  "misses": [
+   "npm:@solana/web3.js 1.95.5->1.95.7 (clean)",
+   "npm:xrpl 4.2.0->4.2.3 (clean)",
+   "npm:xrpl 4.2.0->4.2.4 (clean)",
+   "npm:xrpl 4.2.0->4.2.2 (clean)",
+   "npm:xrpl 4.2.0->4.2.1 (clean)",
+   "npm:xrpl 2.14.1->2.14.2 (notice)",
+   "pypi:guardrails-ai 0.10.0->0.10.1 (notice)",
+   "pypi:lightning 2.6.1->2.6.3 (notice)",
+   "pypi:lightning 2.6.1->2.6.2 (notice)",
+   "pypi:litellm 1.82.6->1.82.7 (clean)"
+  ],
+  "benign": {
+   "n": 100,
+   "errors": [],
+   "review": 0,
+   "notice": 12,
+   "clean": 88,
+   "ci95_review": [
+    0.0,
+    0.03699480747600191
+   ],
+   "by_ecosystem": {
+    "npm": {
+     "n": 50,
+     "review": 0
+    },
+    "pypi": {
+     "n": 50,
+     "review": 0
+    }
+   },
+   "false_alarms": []
+  }
+ }
+}
