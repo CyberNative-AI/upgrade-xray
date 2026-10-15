@@ -8,16 +8,22 @@ const VERDICT = {
 };
 const SEV = { high: 'High', medium: 'Medium', low: 'Low', info: 'Info' };
 
-const code = (s) => `\`${String(s).replace(/`/g, "'").replace(/\s+/g, ' ').slice(0, 160)}\``;
-const loc = (l) => (l.line ? `${l.file}:${l.line}` : l.file);
+// Every value that comes from a package, a registry or a lockfile goes through code() or text(), so
+// it cannot change the Markdown around it. Reports are posted as pull-request comments, where
+// "@solana/web3.js" outside a code span would notify the "solana" GitHub account.
 
-// npm scopes look like GitHub mentions ("@solana/web3.js" would ping the "solana" account when the
-// report is posted as a pull-request comment). Outside code spans, put every mention-like token in
-// a code span. Idempotent, so composed reports can apply it again.
-const MENTION = /(^|[^\w`@/])@([A-Za-z0-9][\w.-]*(?:\/[\w.-]+)?)/g;
-export function quoteMentions(md) {
-    return md.split(/(`[^`\n]*`)/).map((part, i) => (i % 2 ? part : part.replace(MENTION, '$1`@$2`'))).join('');
+/** An untrusted value as a code span: no backticks or line breaks inside, so the span always closes. */
+export const code = (s) => `\`${String(s).replace(/`/g, "'").replace(/\s+/g, ' ').slice(0, 160)}\``;
+
+/**
+ * Untrusted prose (error messages, finding titles, notes): one line, no HTML, entities, links,
+ * backticks or backslash escapes, and every @-name in a code span.
+ */
+export function text(s) {
+    return String(s).replace(/\s+/g, ' ').replace(/[\\`<>&[\]]/g, (c) => ({ '\\': '\\\\', '`': "'", '<': '&lt;', '>': '&gt;', '&': '&amp;', '[': '\\[', ']': '\\]' })[c])
+        .replace(/(^|[^\w])@([\w.-]+(?:\/[\w.-]+)?)/g, '$1`@$2`');
 }
+const loc = (l) => (l.line ? `${l.file}:${l.line}` : l.file);
 
 export const DISCLAIMER = 'Static analysis of the published files: nothing was installed or executed. A finding is a change worth reading, not proof of malware, and an empty report does not prove a package is safe.';
 
@@ -34,15 +40,15 @@ export function packageVerdict(r) {
 
 export function packageTitle(r) {
     const eco = r.ecosystem === 'pypi' ? 'PyPI' : 'npm';
-    const range = r.fromVersion ? `${r.fromVersion} → ${r.toVersion}` : `new at ${r.toVersion}`;
-    return `${r.name} ${range} (${eco})`;
+    const range = r.fromVersion ? `${text(r.fromVersion)} → ${text(r.toVersion)}` : `new at ${text(r.toVersion)}`;
+    return `${code(r.name)} ${range} (${eco})`;
 }
 
 export function packageMarkdown(r, { heading = '###', maxFindings = 25 } = {}) {
     const lines = [];
     if (r.error) {
-        lines.push(`${heading} ${VERDICT.error} — ${r.name}${r.toVersion ? ` ${r.toVersion}` : ''} (${r.ecosystem})`, '', `Could not analyse: ${r.error}`, '');
-        return quoteMentions(lines.join('\n'));
+        lines.push(`${heading} ${VERDICT.error} — ${code(r.name)}${r.toVersion ? ` ${text(r.toVersion)}` : ''} (${r.ecosystem === 'pypi' ? 'PyPI' : 'npm'})`, '', `Could not analyse: ${text(r.error)}`, '');
+        return lines.join('\n');
     }
     lines.push(`${heading} ${VERDICT[packageVerdict(r)]} — ${packageTitle(r)}`, '');
     const sec = r.findings.filter((f) => f.category !== 'breaking' && f.severity !== 'info');
@@ -58,23 +64,23 @@ export function packageMarkdown(r, { heading = '###', maxFindings = 25 } = {}) {
     for (const f of sec.slice(0, maxFindings)) {
         const where = f.locations?.length ? ` — ${f.locations.slice(0, 3).map((l) => code(loc(l))).join(', ')}${(f.locations.length > 3 || f.moreLocations) ? ' …' : ''}` : '';
         const extra = f.detail && !f.title.includes(f.detail) ? `: ${code(f.detail)}` : '';
-        lines.push(`- **${SEV[f.severity]}** ${f.title}${extra}${where}${f.artifact ? ` _(${f.artifact})_` : ''}`);
+        lines.push(`- **${SEV[f.severity]}** ${text(f.title)}${extra}${where}${f.artifact ? ` _(${text(f.artifact)})_` : ''}`);
     }
     if (sec.length > maxFindings) lines.push(`- …and ${sec.length - maxFindings} more in the dataset item.`);
     if (brk.length) {
         lines.push('', '<details><summary>API and compatibility changes</summary>', '');
-        for (const f of brk) lines.push(`- ${f.severity === 'info' ? '' : `**${SEV[f.severity]}** `}${f.title}`);
+        for (const f of brk) lines.push(`- ${f.severity === 'info' ? '' : `**${SEV[f.severity]}** `}${text(f.title)}`);
         lines.push('', '</details>');
     }
     if (info.length) {
         lines.push('', '<details><summary>Other notes</summary>', '');
-        for (const f of info.slice(0, 15)) lines.push(`- ${f.title}${f.detail && !f.title.includes(f.detail) ? `: ${code(f.detail)}` : ''}`);
+        for (const f of info.slice(0, 15)) lines.push(`- ${text(f.title)}${f.detail && !f.title.includes(f.detail) ? `: ${code(f.detail)}` : ''}`);
         lines.push('', '</details>');
     }
     const fc = r.files;
-    if (fc) lines.push('', `<sub>Files: ${fc.added} added, ${fc.changed} changed, ${fc.removed} removed (of ${fc.total}).${r.notes?.length ? ` Notes: ${r.notes.join('; ')}` : ''}</sub>`);
+    if (fc) lines.push('', `<sub>Files: ${fc.added} added, ${fc.changed} changed, ${fc.removed} removed (of ${fc.total}).${r.notes?.length ? ` Notes: ${r.notes.map(text).join('; ')}` : ''}</sub>`);
     lines.push('');
-    return quoteMentions(lines.join('\n'));
+    return lines.join('\n');
 }
 
 export function coverageText(cov) {
@@ -122,7 +128,7 @@ export function packagesReport(results, { title = 'Upgrade X-Ray', verdict, cove
     const out = [`## ${title}`, '', ...overallLines(verdict, coverage), countsLine(c), ''];
     for (const r of sortResults(results)) out.push(packageMarkdown(r));
     out.push(`<sub>${DISCLAIMER}</sub>`, '');
-    return quoteMentions(out.join('\n'));
+    return out.join('\n');
 }
 
 const RANK = { review: 0, notice: 1, error: 2, incomplete: 3, clean: 4 };
@@ -150,18 +156,18 @@ export function lockfileReport(results, diff, { skipped = [], title = 'Upgrade X
     }
     if (diff.originChanges?.length) {
         out.push('**Moved to the public registry from another source** (scanned as new packages; check that the public package is the one you meant — a common dependency-confusion pattern):', '');
-        for (const n of diff.originChanges.slice(0, 30)) out.push(`- ${n.name} ${n.to} (was: ${n.fromOrigin})`);
+        for (const n of diff.originChanges.slice(0, 30)) out.push(`- ${code(n.name)} ${text(n.to)} (was: ${text(n.fromOrigin)})`);
         out.push('');
     }
     if (diff.nonRegistry.length) {
         out.push('**Not looked up (origin not proven to be the public registry; names were not sent anywhere):**', '');
-        for (const n of diff.nonRegistry.slice(0, 30)) out.push(`- ${n.name} ${n.to} from ${code(n.source)}`);
+        for (const n of diff.nonRegistry.slice(0, 30)) out.push(`- ${code(n.name)} ${text(n.to)} from ${code(n.source)}`);
         if (diff.nonRegistry.length > 30) out.push(`- …and ${diff.nonRegistry.length - 30} more in OUTPUT.`);
         if (diff.nonRegistry.some((n) => n.origin === 'unknown')) out.push('', `Entries with no recorded origin can be checked if you confirm they all come from the public registry: set \`assumePublicRegistry\` to true.`);
         out.push('');
     }
-    if (skipped.length) out.push(`Skipped ${skipped.length} change(s) above the package limit: ${skipped.slice(0, 30).map((s) => `${s.name} ${s.to}`).join(', ')}${skipped.length > 30 ? ' …' : ''}`, '');
-    if (diff.removed.length) out.push(`<details><summary>Removed packages (${diff.removed.length})</summary>\n\n${diff.removed.slice(0, 100).map((r) => `${r.name} ${r.from}`).join(', ')}\n\n</details>`, '');
+    if (skipped.length) out.push(`Skipped ${skipped.length} change(s) above the package limit: ${skipped.slice(0, 30).map((s) => `${code(s.name)} ${text(s.to)}`).join(', ')}${skipped.length > 30 ? ' …' : ''}`, '');
+    if (diff.removed.length) out.push(`<details><summary>Removed packages (${diff.removed.length})</summary>\n\n${diff.removed.slice(0, 100).map((r) => `${code(r.name)} ${text(r.from)}`).join(', ')}\n\n</details>`, '');
     out.push(`<sub>${DISCLAIMER}</sub>`, '');
-    return quoteMentions(out.join('\n'));
+    return out.join('\n');
 }

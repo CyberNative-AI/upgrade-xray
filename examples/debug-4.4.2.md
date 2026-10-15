@@ -4,7 +4,7 @@
 
 **1 to review · 0 worth a look · 0 nothing new**
 
-### 🔴 REVIEW BEFORE MERGE — debug 4.4.1 → 4.4.2 (npm)
+### 🔴 REVIEW BEFORE MERGE — `debug` 4.4.1 → 4.4.2 (npm)
 
 - **High** New: obfuscated code — 314 _0x-style identifiers — `src/index.js`
 - **Low** 1 new minified file(s) outside usual build folders: `src/index.js`
