@@ -6,8 +6,8 @@
 
 ### 🔴 REVIEW BEFORE MERGE — `debug` 4.4.1 → 4.4.2 (npm)
 
-- **High** New: obfuscated code — 314 _0x-style identifiers — `src/index.js`
-- **Low** 1 new minified file(s) outside usual build folders: `src/index.js`
+- **High** New: obfuscated code — `314 _0x-style identifiers` · in `src/index.js`
+- **Low** 1 new minified file(s) outside usual build folders — `src/index.js`
 
 <sub>Files: 0 added, 2 changed, 0 removed (of 7).</sub>
 

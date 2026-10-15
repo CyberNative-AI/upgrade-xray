@@ -64,12 +64,9 @@ export function packageMarkdown(r, { heading = '###', maxFindings = 25 } = {}) {
         lines.push(`${base}${partial ? ' in the files that were inspected' : ''}.`);
     }
     if (partial) lines.push('', `_Coverage: ${coverageText(cov)}._`);
-    for (const f of sec.slice(0, maxFindings)) {
-        const where = f.locations?.length ? ` — ${f.locations.slice(0, 3).map((l) => code(loc(l))).join(', ')}${(f.locations.length > 3 || f.moreLocations) ? ' …' : ''}` : '';
-        const extra = f.detail && !f.title.includes(f.detail) ? `: ${code(f.detail)}` : '';
-        lines.push(`- **${SEV[f.severity]}** ${text(f.title)}${extra}${where}${f.artifact ? ` _(${text(f.artifact)})_` : ''}`);
-    }
-    if (sec.length > maxFindings) lines.push(`- …and ${sec.length - maxFindings} more in the dataset item.`);
+    const groups = groupFindings(sec);
+    for (const g of groups.slice(0, maxFindings)) lines.push(`- **${SEV[g.severity]}** ${groupLine(g)}`);
+    if (groups.length > maxFindings) lines.push(`- …and ${groups.length - maxFindings} more in the dataset item.`);
     if (brk.length) {
         lines.push('', '<details><summary>API and compatibility changes</summary>', '');
         for (const f of brk) lines.push(`- ${f.severity === 'info' ? '' : `**${SEV[f.severity]}** `}${text(f.title)}`);
@@ -77,13 +74,68 @@ export function packageMarkdown(r, { heading = '###', maxFindings = 25 } = {}) {
     }
     if (info.length) {
         lines.push('', '<details><summary>Other notes</summary>', '');
-        for (const f of info.slice(0, 15)) lines.push(`- ${text(f.title)}${f.detail && !f.title.includes(f.detail) ? `: ${code(f.detail)}` : ''}`);
+        for (const g of groupFindings(info).slice(0, 15)) lines.push(`- ${groupLine(g, { where: false })}`);
         lines.push('', '</details>');
     }
     const fc = r.files;
     if (fc) lines.push('', `<sub>Files: ${fc.added} added, ${fc.changed} changed, ${fc.removed} removed (of ${fc.total}).${r.notes?.length ? ` Notes: ${r.notes.map(text).join('; ')}` : ''}</sub>`);
     lines.push('');
     return lines.join('\n');
+}
+
+const ITEMS_SHOWN = 6;
+
+/**
+ * Findings that differ only in what was matched become one line: "New: network access — fetch()"
+ * and "New: network access — XMLHttpRequest()" in the same file are one finding to a reader.
+ * Groups keep the order of their first finding; locations are merged without repeats.
+ */
+export function groupFindings(findings) {
+    const groups = new Map();
+    for (const f of findings) {
+        const art = f.artifact || '';
+        let key; let label; let item = null; let extra = '';
+        if (f.kind === 'new-dependency' && f.dependency) {
+            label = f.title.slice(0, f.title.indexOf(':')).trim() || 'New dependency';
+            item = `${code(f.dependency)}${f.spec ? ` ${text(f.spec)}` : ''}`;
+            extra = f.detail || '';
+            key = `${f.severity}|dep|${label}|${extra}|${art}`;
+        } else if ((f.kind === 'new-host' || f.kind === 'minified-blob') && f.detail) {
+            // The detail is a pre-joined list (cut at 15 or 10); the title holds the full count.
+            label = f.title;
+            key = `${f.severity}|${f.kind}|${label}|${art}|${groups.size}`;
+            groups.set(key, { severity: f.severity, label, items: f.detail.split(', ').map(code), total: Number(f.title.match(/^\d+/)?.[0]) || 0, extra: '', artifact: art, locations: (f.locations || []).map(loc).filter((x, i, a) => a.indexOf(x) === i), more: Boolean(f.moreLocations) });
+            continue;
+        } else if (f.detail && f.title.includes(` — ${f.detail}`)) {
+            label = f.title.replace(` — ${f.detail}`, '');
+            item = code(f.detail);
+            key = `${f.severity}|${f.kind}|${label}|${art}`;
+        } else {
+            label = f.title;
+            // The install-time summary's detail repeats the signals listed on their own lines.
+            if (f.detail && !f.title.includes(f.detail) && f.kind !== 'install-script-capability') extra = f.detail;
+            key = `${f.severity}|${f.kind}|${label}|${extra}|${art}|${groups.size}`;
+        }
+        let g = groups.get(key);
+        if (!g) groups.set(key, (g = { severity: f.severity, label, items: [], extra, artifact: art, locations: [], more: false }));
+        if (item && !g.items.some((x) => x.toLowerCase() === item.toLowerCase())) g.items.push(item);
+        for (const l of f.locations || []) { const s = loc(l); if (!g.locations.includes(s)) g.locations.push(s); }
+        if (f.moreLocations) g.more = true;
+    }
+    return [...groups.values()];
+}
+
+function groupLine(g, { where = true } = {}) {
+    const many = g.items.length > 1;
+    let label = text(g.label);
+    if (many && /^New (optional \(extra\) )?dependency$/.test(g.label)) label = `${label.replace(/dependency$/, 'dependencies')} (${g.items.length})`;
+    const shown = g.items.slice(0, ITEMS_SHOWN).join(', ');
+    const total = Math.max(g.items.length, g.total || 0);
+    const rest = total > ITEMS_SHOWN ? ` and ${total - Math.min(ITEMS_SHOWN, g.items.length)} more` : '';
+    const items = g.items.length ? `${g.items.length === 1 && !g.extra ? ' — ' : ': '}${shown}${rest}` : '';
+    const extra = g.extra ? `${g.items.length ? ' — ' : ': '}${code(g.extra)}` : '';
+    const at = where && g.locations.length ? ` · in ${g.locations.slice(0, 3).map(code).join(', ')}${g.locations.length > 3 || g.more ? ' …' : ''}` : '';
+    return `${label}${items}${extra}${at}${g.artifact ? ` _(${text(g.artifact)})_` : ''}`;
 }
 
 export function coverageText(cov) {
