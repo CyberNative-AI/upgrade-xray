@@ -1,0 +1,85 @@
+{
+    "title": "Upgrade X-Ray input",
+    "type": "object",
+    "schemaVersion": 1,
+    "properties": {
+        "packages": {
+            "title": "Package updates",
+            "type": "array",
+            "description": "One update per line. Formats: \"npm:chalk@5.6.0..5.6.1\", \"pypi:requests@2.31.0..2.32.0\", \"pypi:requests==2.32.0\" (compared with the release before it) or just \"axios\" (previous release vs latest). Charged per package analysed.",
+            "editor": "stringList",
+            "prefill": [
+                "npm:chalk@5.6.0..5.6.1",
+                "pypi:requests@2.31.0..2.32.0"
+            ]
+        },
+        "ecosystem": {
+            "title": "Default ecosystem",
+            "type": "string",
+            "description": "Used for package lines without an \"npm:\" or \"pypi:\" prefix.",
+            "editor": "select",
+            "enum": [
+                "npm",
+                "pypi"
+            ],
+            "enumTitles": [
+                "npm",
+                "PyPI"
+            ],
+            "default": "npm"
+        },
+        "lockfileBefore": {
+            "title": "Lockfile before the update (text)",
+            "type": "string",
+            "description": "Paste the old package-lock.json, npm-shrinkwrap.json, pnpm-lock.yaml, uv.lock or poetry.lock. With both lockfiles the run makes one lockfile report covering every changed package.",
+            "editor": "textarea",
+            "sectionCaption": "Lockfile mode"
+        },
+        "lockfileAfter": {
+            "title": "Lockfile after the update (text)",
+            "type": "string",
+            "description": "The new version of the same lockfile.",
+            "editor": "textarea"
+        },
+        "lockfileBeforeUrl": {
+            "title": "Lockfile before (URL)",
+            "type": "string",
+            "description": "Instead of pasting: a raw URL, e.g. https://raw.githubusercontent.com/OWNER/REPO/BASE_SHA/package-lock.json",
+            "editor": "textfield"
+        },
+        "lockfileAfterUrl": {
+            "title": "Lockfile after (URL)",
+            "type": "string",
+            "description": "Raw URL of the updated lockfile.",
+            "editor": "textfield"
+        },
+        "lockfileName": {
+            "title": "Lockfile file name (optional)",
+            "type": "string",
+            "description": "Helps format detection, e.g. \"uv.lock\". Usually detected automatically.",
+            "editor": "textfield"
+        },
+        "includeAddedPackages": {
+            "title": "Also scan packages that are new to the lockfile",
+            "type": "boolean",
+            "description": "New transitive packages are checked for install scripts and high-risk indicators.",
+            "default": true
+        },
+        "maxPackages": {
+            "title": "Maximum packages per lockfile report",
+            "type": "integer",
+            "description": "Changes beyond this number are listed but not analysed.",
+            "minimum": 1,
+            "maximum": 300,
+            "default": 150
+        },
+        "concurrency": {
+            "title": "Parallel downloads",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 8,
+            "default": 4,
+            "description": "How many packages are fetched and analysed at the same time."
+        }
+    }
+}

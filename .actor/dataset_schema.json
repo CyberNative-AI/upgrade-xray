@@ -1,0 +1,25 @@
+{
+    "actorSpecification": 1,
+    "fields": {},
+    "views": {
+        "overview": {
+            "title": "Verdicts",
+            "transformation": {
+                "fields": ["ecosystem", "name", "fromVersion", "toVersion", "verdict", "breaking", "summary", "newDependencies"]
+            },
+            "display": {
+                "component": "table",
+                "properties": {
+                    "ecosystem": { "label": "Ecosystem", "format": "text" },
+                    "name": { "label": "Package", "format": "text" },
+                    "fromVersion": { "label": "From", "format": "text" },
+                    "toVersion": { "label": "To", "format": "text" },
+                    "verdict": { "label": "Verdict", "format": "text" },
+                    "breaking": { "label": "API changes", "format": "boolean" },
+                    "summary": { "label": "Top findings", "format": "text" },
+                    "newDependencies": { "label": "New dependencies", "format": "array" }
+                }
+            }
+        }
+    }
+}

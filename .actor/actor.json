@@ -1,0 +1,15 @@
+{
+    "actorSpecification": 1,
+    "name": "upgrade-xray",
+    "title": "Upgrade X-Ray: what a dependency update really changes",
+    "description": "Diff the published npm or PyPI files of a dependency update before you merge it: new install scripts, new network, shell or eval calls, removed functions and new dependencies. Static analysis only; nothing is installed or run.",
+    "version": "0.1",
+    "buildTag": "latest",
+    "input": "./input_schema.json",
+    "dockerfile": "./Dockerfile",
+    "storages": {
+        "dataset": "./dataset_schema.json"
+    },
+    "minMemoryMbytes": 512,
+    "maxMemoryMbytes": 4096
+}

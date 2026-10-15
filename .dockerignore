@@ -1,0 +1,5 @@
+node_modules
+storage
+test
+fixtures/out
+.git

@@ -1,0 +1,1352 @@
+[
+ {
+  "ecosystem": "npm",
+  "name": "minimatch",
+  "rank": 2,
+  "split": "holdout",
+  "from": "9.0.9",
+  "to": "10.0.0",
+  "published": "2024-07-08T21:53:11.825Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "ansi-styles",
+  "rank": 3,
+  "split": "dev",
+  "from": "6.2.3",
+  "to": "7.0.0",
+  "published": "2026-07-26T14:57:36.835Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "brace-expansion",
+  "rank": 5,
+  "split": "holdout",
+  "from": "4.0.1",
+  "to": "5.0.2",
+  "published": "2026-02-12T08:18:54.923Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "lru-cache",
+  "rank": 6,
+  "split": "holdout",
+  "from": "10.4.3",
+  "to": "11.0.0",
+  "published": "2024-07-08T21:54:07.840Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "commander",
+  "rank": 8,
+  "split": "holdout",
+  "from": "14.0.3",
+  "to": "15.0.0",
+  "published": "2026-05-29T09:16:23.076Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "string-width",
+  "rank": 9,
+  "split": "holdout",
+  "from": "7.2.0",
+  "to": "8.0.0",
+  "published": "2025-08-22T06:09:04.665Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "picomatch",
+  "rank": 12,
+  "split": "dev",
+  "from": "3.0.2",
+  "to": "4.0.0",
+  "published": "2024-02-08T02:22:12.147Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "supports-color",
+  "rank": 13,
+  "split": "dev",
+  "from": "10.2.2",
+  "to": "11.0.0",
+  "published": "2026-07-26T15:13:36.815Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "chalk",
+  "rank": 14,
+  "split": "dev",
+  "from": "5.6.2",
+  "to": "6.0.0",
+  "published": "2026-07-26T14:51:07.269Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "wrap-ansi",
+  "rank": 15,
+  "split": "holdout",
+  "from": "9.0.2",
+  "to": "10.0.0",
+  "published": "2026-02-20T10:03:54.703Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "emoji-regex",
+  "rank": 17,
+  "split": "holdout",
+  "from": "10.6.0",
+  "to": "11.0.0",
+  "published": "2026-09-15T17:11:44.000Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "@types/node",
+  "rank": 18,
+  "split": "holdout",
+  "from": "25.9.8",
+  "to": "26.0.0",
+  "published": "2026-06-19T07:14:52.347Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "balanced-match",
+  "rank": 19,
+  "split": "holdout",
+  "from": "3.0.1",
+  "to": "4.0.2",
+  "published": "2026-02-09T14:50:47.458Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "eslint-visitor-keys",
+  "rank": 20,
+  "split": "dev",
+  "from": "4.2.1",
+  "to": "5.0.0",
+  "published": "2025-11-10T16:30:02.580Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "glob",
+  "rank": 21,
+  "split": "holdout",
+  "from": "12.0.0",
+  "to": "13.0.0",
+  "published": "2025-11-19T16:04:02.567Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "type-fest",
+  "rank": 23,
+  "split": "holdout",
+  "from": "4.41.0",
+  "to": "5.0.0",
+  "published": "2025-09-13T09:46:04.328Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "source-map",
+  "rank": 24,
+  "split": "dev",
+  "from": "0.7.6",
+  "to": "0.8.0",
+  "published": "2026-07-20T05:45:25.965Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "react-is",
+  "rank": 25,
+  "split": "dev",
+  "from": "18.3.1",
+  "to": "19.0.0",
+  "published": "2024-12-05T18:10:41.382Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "color-name",
+  "rank": 26,
+  "split": "holdout",
+  "from": "1.1.4",
+  "to": "2.0.0",
+  "published": "2022-11-08T14:32:47.478Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "which",
+  "rank": 27,
+  "split": "holdout",
+  "from": "6.0.1",
+  "to": "7.0.0",
+  "published": "2026-05-08T18:30:58.733Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "color-convert",
+  "rank": 28,
+  "split": "dev",
+  "from": "2.0.1",
+  "to": "3.0.0",
+  "published": "2025-02-05T19:01:04.922Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "readable-stream",
+  "rank": 29,
+  "split": "holdout",
+  "from": "3.6.2",
+  "to": "4.0.0",
+  "published": "2022-06-14T21:46:35.420Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "undici-types",
+  "rank": 30,
+  "split": "holdout",
+  "from": "7.30.0",
+  "to": "8.0.0",
+  "published": "2026-04-02T09:11:30.199Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "find-up",
+  "rank": 34,
+  "split": "dev",
+  "from": "7.0.0",
+  "to": "8.0.0",
+  "published": "2025-09-16T01:13:57.112Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "ignore",
+  "rank": 35,
+  "split": "holdout",
+  "from": "6.0.2",
+  "to": "7.0.0",
+  "published": "2024-12-23T11:50:50.714Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "p-limit",
+  "rank": 36,
+  "split": "holdout",
+  "from": "6.2.0",
+  "to": "7.0.0",
+  "published": "2025-08-14T20:51:04.246Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "locate-path",
+  "rank": 38,
+  "split": "dev",
+  "from": "7.2.0",
+  "to": "8.0.0",
+  "published": "2025-09-15T23:17:38.813Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "p-locate",
+  "rank": 39,
+  "split": "holdout",
+  "from": "6.0.0",
+  "to": "7.0.0",
+  "published": "2026-02-03T07:57:49.916Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "yallist",
+  "rank": 41,
+  "split": "holdout",
+  "from": "4.0.0",
+  "to": "5.0.0",
+  "published": "2024-04-09T19:21:44.844Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "zod",
+  "rank": 42,
+  "split": "dev",
+  "from": "3.25.76",
+  "to": "4.0.0",
+  "published": "2025-07-09T18:47:37.886Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "entities",
+  "rank": 43,
+  "split": "holdout",
+  "from": "7.0.1",
+  "to": "8.0.0",
+  "published": "2026-03-17T11:47:45.464Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "iconv-lite",
+  "rank": 44,
+  "split": "holdout",
+  "from": "0.6.3",
+  "to": "0.7.0",
+  "published": "2025-08-20T16:48:57.506Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "isexe",
+  "rank": 46,
+  "split": "holdout",
+  "from": "3.1.5",
+  "to": "4.0.0",
+  "published": "2026-02-09T16:28:02.924Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "js-yaml",
+  "rank": 47,
+  "split": "dev",
+  "from": "4.3.2",
+  "to": "5.0.0",
+  "published": "2026-06-20T17:28:55.421Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "uuid",
+  "rank": 48,
+  "split": "holdout",
+  "from": "13.0.2",
+  "to": "14.0.0",
+  "published": "2026-04-19T15:15:42.302Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "typescript",
+  "rank": 49,
+  "split": "holdout",
+  "from": "6.0.3",
+  "to": "7.0.2",
+  "published": "2026-07-08T15:55:18.431Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "signal-exit",
+  "rank": 50,
+  "split": "holdout",
+  "from": "3.0.7",
+  "to": "4.0.0",
+  "published": "2023-04-16T00:32:53.803Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "esbuild",
+  "rank": 52,
+  "split": "holdout",
+  "from": "0.27.7",
+  "to": "0.28.0",
+  "published": "2026-04-02T20:38:46.463Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "mime-types",
+  "rank": 54,
+  "split": "holdout",
+  "from": "2.1.35",
+  "to": "3.0.0",
+  "published": "2024-08-31T13:57:14.134Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "agent-base",
+  "rank": 56,
+  "split": "holdout",
+  "from": "8.0.0",
+  "to": "9.0.0",
+  "published": "2026-04-01T06:57:34.221Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "globals",
+  "rank": 57,
+  "split": "dev",
+  "from": "16.5.0",
+  "to": "17.0.0",
+  "published": "2026-01-01T18:01:38.107Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "is-fullwidth-code-point",
+  "rank": 58,
+  "split": "holdout",
+  "from": "4.0.0",
+  "to": "5.0.0",
+  "published": "2023-10-28T13:20:15.377Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "yargs",
+  "rank": 59,
+  "split": "holdout",
+  "from": "17.7.3",
+  "to": "18.0.0",
+  "published": "2025-05-27T14:27:19.495Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "yargs-parser",
+  "rank": 60,
+  "split": "holdout",
+  "from": "21.1.1",
+  "to": "22.0.0",
+  "published": "2025-05-26T20:12:00.864Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "https-proxy-agent",
+  "rank": 61,
+  "split": "holdout",
+  "from": "8.0.0",
+  "to": "9.0.0",
+  "published": "2026-04-01T06:57:52.372Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "js-tokens",
+  "rank": 63,
+  "split": "holdout",
+  "from": "9.0.1",
+  "to": "10.0.0",
+  "published": "2025-12-08T21:09:55.458Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "@jridgewell/trace-mapping",
+  "rank": 64,
+  "split": "holdout",
+  "from": "0.2.7",
+  "to": "0.3.0",
+  "published": "2022-02-05T10:10:09.691Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "argparse",
+  "rank": 65,
+  "split": "holdout",
+  "from": "2.0.1",
+  "to": "3.0.0",
+  "published": "2026-07-14T05:48:02.619Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "nanoid",
+  "rank": 66,
+  "split": "holdout",
+  "from": "5.1.16",
+  "to": "6.0.0",
+  "published": "2026-07-12T15:11:38.825Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "@babel/code-frame",
+  "rank": 68,
+  "split": "holdout",
+  "from": "7.29.7",
+  "to": "8.0.0",
+  "published": "2026-06-16T13:32:12.341Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "whatwg-url",
+  "rank": 72,
+  "split": "holdout",
+  "from": "16.0.1",
+  "to": "17.0.0",
+  "published": "2026-06-29T09:42:41.678Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "picocolors",
+  "rank": 75,
+  "split": "holdout",
+  "from": "0.2.1",
+  "to": "1.0.0",
+  "published": "2021-10-13T02:48:42.115Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "@babel/helper-validator-identifier",
+  "rank": 76,
+  "split": "holdout",
+  "from": "7.29.7",
+  "to": "8.0.0",
+  "published": "2026-06-16T13:32:05.436Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "@babel/types",
+  "rank": 78,
+  "split": "holdout",
+  "from": "7.29.8",
+  "to": "8.0.0",
+  "published": "2026-06-16T13:32:55.134Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "content-type",
+  "rank": 79,
+  "split": "holdout",
+  "from": "2.1.0",
+  "to": "3.0.0",
+  "published": "2026-08-20T23:01:26.175Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "hasown",
+  "rank": 81,
+  "split": "holdout",
+  "from": "1.0.1",
+  "to": "2.0.0",
+  "published": "2023-10-21T04:54:15.456Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "cliui",
+  "rank": 83,
+  "split": "holdout",
+  "from": "8.0.1",
+  "to": "9.0.0",
+  "published": "2025-03-16T14:57:05.166Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "@types/estree",
+  "rank": 85,
+  "split": "holdout",
+  "from": "0.0.52",
+  "to": "1.0.0",
+  "published": "2022-07-12T20:32:24.817Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "tr46",
+  "rank": 86,
+  "split": "holdout",
+  "from": "5.1.1",
+  "to": "6.0.0",
+  "published": "2025-09-18T00:42:31.639Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "fs-extra",
+  "rank": 87,
+  "split": "holdout",
+  "from": "10.1.0",
+  "to": "11.0.0",
+  "published": "2022-11-28T19:13:59.435Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "@babel/parser",
+  "rank": 88,
+  "split": "holdout",
+  "from": "7.29.9",
+  "to": "8.0.0",
+  "published": "2026-06-16T13:32:58.220Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "minipass",
+  "rank": 89,
+  "split": "holdout",
+  "from": "6.0.2",
+  "to": "7.0.0",
+  "published": "2023-07-08T00:14:43.854Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "convert-source-map",
+  "rank": 90,
+  "split": "holdout",
+  "from": "1.9.0",
+  "to": "2.0.0",
+  "published": "2022-10-17T22:06:48.628Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "magic-string",
+  "rank": 91,
+  "split": "dev",
+  "from": "0.30.21",
+  "to": "1.0.0",
+  "published": "2026-07-16T10:15:20.004Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "pretty-format",
+  "rank": 94,
+  "split": "dev",
+  "from": "29.7.0",
+  "to": "30.0.0",
+  "published": "2025-06-10T02:15:48.196Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "webidl-conversions",
+  "rank": 96,
+  "split": "dev",
+  "from": "7.0.0",
+  "to": "8.0.0",
+  "published": "2025-09-09T02:21:17.194Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "@babel/helper-string-parser",
+  "rank": 100,
+  "split": "dev",
+  "from": "7.29.7",
+  "to": "8.0.0",
+  "published": "2026-06-16T13:32:04.480Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "@babel/traverse",
+  "rank": 109,
+  "split": "dev",
+  "from": "7.29.8",
+  "to": "8.0.0",
+  "published": "2026-06-16T13:33:18.574Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "detect-libc",
+  "rank": 111,
+  "split": "dev",
+  "from": "1.0.3",
+  "to": "2.0.0",
+  "published": "2022-01-19T10:22:43.396Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "@esbuild/linux-x64",
+  "rank": 114,
+  "split": "dev",
+  "from": "0.27.7",
+  "to": "0.28.0",
+  "published": "2026-04-02T20:37:40.992Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "scheduler",
+  "rank": 133,
+  "split": "dev",
+  "from": "0.27.0",
+  "to": "0.28.0",
+  "published": "2026-09-09T17:17:30.281Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "@babel/helpers",
+  "rank": 162,
+  "split": "dev",
+  "from": "7.29.7",
+  "to": "8.0.0",
+  "published": "2026-06-16T13:33:12.822Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "espree",
+  "rank": 170,
+  "split": "dev",
+  "from": "10.4.0",
+  "to": "11.0.0",
+  "published": "2025-11-10T16:30:12.949Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "parse5",
+  "rank": 194,
+  "split": "dev",
+  "from": "7.3.0",
+  "to": "8.0.0",
+  "published": "2025-07-09T21:02:26.323Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "@babel/helper-compilation-targets",
+  "rank": 198,
+  "split": "dev",
+  "from": "7.29.7",
+  "to": "8.0.0",
+  "published": "2026-06-16T13:32:12.251Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "packaging",
+  "rank": 2,
+  "split": "holdout",
+  "from": "25.0",
+  "to": "26.0",
+  "published": "2026-01-21T20:50:37.788Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "typing-extensions",
+  "rank": 3,
+  "split": "holdout",
+  "from": "3.10.0.2",
+  "to": "4.0.0",
+  "published": "2021-11-14T22:11:20.075Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "urllib3",
+  "rank": 5,
+  "split": "holdout",
+  "from": "1.26.20",
+  "to": "2.0.2",
+  "published": "2023-05-03T22:37:13.760Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "certifi",
+  "rank": 6,
+  "split": "dev",
+  "from": "2025.11.12",
+  "to": "2026.1.4",
+  "published": "2026-01-04T02:42:40.150Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "charset-normalizer",
+  "rank": 8,
+  "split": "holdout",
+  "from": "2.1.1",
+  "to": "3.0.0",
+  "published": "2022-10-20T11:13:03.827Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "cryptography",
+  "rank": 9,
+  "split": "holdout",
+  "from": "49.0.0",
+  "to": "50.0.0",
+  "published": "2026-07-31T14:23:33.331Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "cffi",
+  "rank": 10,
+  "split": "holdout",
+  "from": "1.17.1",
+  "to": "2.0.0",
+  "published": "2025-09-08T23:22:08.010Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "setuptools",
+  "rank": 11,
+  "split": "holdout",
+  "from": "83.0.0",
+  "to": "84.0.0",
+  "published": "2026-08-08T18:27:56.719Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "pyyaml",
+  "rank": 13,
+  "split": "dev",
+  "from": "5.4.1",
+  "to": "6.0",
+  "published": "2021-10-13T19:39:42.916Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "pydantic",
+  "rank": 18,
+  "split": "dev",
+  "from": "1.10.26",
+  "to": "2.0",
+  "published": "2023-06-30T16:27:55.003Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "pycparser",
+  "rank": 19,
+  "split": "holdout",
+  "from": "2.23",
+  "to": "3.0",
+  "published": "2026-01-21T14:26:50.693Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "pydantic_core",
+  "rank": 21,
+  "split": "holdout",
+  "from": "0.42.0",
+  "to": "2.0.0",
+  "published": "2023-06-30T10:35:29.147Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "anyio",
+  "rank": 22,
+  "split": "holdout",
+  "from": "3.7.1",
+  "to": "4.0.0",
+  "published": "2023-08-30T22:24:04.727Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "numpy",
+  "rank": 23,
+  "split": "holdout",
+  "from": "1.26.4",
+  "to": "2.0.0",
+  "published": "2024-06-16T13:06:46.930Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "pytest",
+  "rank": 24,
+  "split": "dev",
+  "from": "8.4.2",
+  "to": "9.0.0",
+  "published": "2025-11-08T17:25:31.811Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "iniconfig",
+  "rank": 25,
+  "split": "holdout",
+  "from": "1.1.1",
+  "to": "2.0.0",
+  "published": "2023-01-07T11:08:09.864Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "annotated-types",
+  "rank": 26,
+  "split": "holdout",
+  "from": "0.7.0",
+  "to": "0.8.0",
+  "published": "2026-07-23T20:16:12.938Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "h11",
+  "rank": 27,
+  "split": "holdout",
+  "from": "0.15.0",
+  "to": "0.16.0",
+  "published": "2025-04-24T03:35:24.344Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "typing-inspection",
+  "rank": 28,
+  "split": "dev",
+  "from": "0.3.1",
+  "to": "0.4.0",
+  "published": "2025-02-25T17:27:57.754Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "attrs",
+  "rank": 29,
+  "split": "dev",
+  "from": "25.4.0",
+  "to": "26.1.0",
+  "published": "2026-03-19T14:22:23.645Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "s3transfer",
+  "rank": 30,
+  "split": "holdout",
+  "from": "0.18.0",
+  "to": "0.19.0",
+  "published": "2026-06-16T19:44:50.439Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "httpx",
+  "rank": 31,
+  "split": "holdout",
+  "from": "0.27.2",
+  "to": "0.28.0",
+  "published": "2024-11-28T14:54:55.141Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "markupsafe",
+  "rank": 32,
+  "split": "dev",
+  "from": "2.1.5",
+  "to": "3.0.0",
+  "published": "2024-10-07T21:08:07.333Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "httpcore",
+  "rank": 33,
+  "split": "holdout",
+  "from": "0.18.0",
+  "to": "1.0.0",
+  "published": "2023-10-06T11:31:40.190Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "aiobotocore",
+  "rank": 34,
+  "split": "holdout",
+  "from": "2.26.0",
+  "to": "3.0.0",
+  "published": "2025-12-10T07:35:44.912Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "protobuf",
+  "rank": 35,
+  "split": "holdout",
+  "from": "6.33.6",
+  "to": "7.34.0",
+  "published": "2026-02-27T00:30:14.924Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "python-dotenv",
+  "rank": 36,
+  "split": "holdout",
+  "from": "0.21.1",
+  "to": "1.0.0",
+  "published": "2023-02-24T06:46:36.009Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "platformdirs",
+  "rank": 38,
+  "split": "holdout",
+  "from": "3.11.0",
+  "to": "4.0.0",
+  "published": "2023-11-10T16:43:06.949Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "fsspec",
+  "rank": 39,
+  "split": "dev",
+  "from": "2025.12.0",
+  "to": "2026.1.0",
+  "published": "2026-01-09T15:21:34.041Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "pandas",
+  "rank": 40,
+  "split": "holdout",
+  "from": "2.3.3",
+  "to": "3.0.0",
+  "published": "2026-01-21T15:50:15.775Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "pathspec",
+  "rank": 42,
+  "split": "dev",
+  "from": "0.12.1",
+  "to": "1.0.0",
+  "published": "2026-01-06T03:21:21.740Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "jmespath",
+  "rank": 43,
+  "split": "holdout",
+  "from": "0.10.0",
+  "to": "1.0.0",
+  "published": "2022-03-15T18:23:07.219Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "starlette",
+  "rank": 44,
+  "split": "holdout",
+  "from": "0.52.1",
+  "to": "1.0.0",
+  "published": "2026-03-22T18:29:45.111Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "uvicorn",
+  "rank": 45,
+  "split": "holdout",
+  "from": "0.53.0",
+  "to": "0.54.0",
+  "published": "2026-09-25T06:52:35.829Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "filelock",
+  "rank": 46,
+  "split": "holdout",
+  "from": "3.32.7",
+  "to": "4.0.0",
+  "published": "2026-09-17T03:59:01.336Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "multidict",
+  "rank": 47,
+  "split": "dev",
+  "from": "6.9.1",
+  "to": "7.0.0",
+  "published": "2026-09-26T19:30:55.170Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "rpds-py",
+  "rank": 49,
+  "split": "holdout",
+  "from": "0.30.0",
+  "to": "2026.5.1",
+  "published": "2026-05-28T11:58:50.780Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "rich",
+  "rank": 52,
+  "split": "holdout",
+  "from": "14.3.4",
+  "to": "15.0.0",
+  "published": "2026-04-12T08:24:00.750Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "markdown-it-py",
+  "rank": 53,
+  "split": "holdout",
+  "from": "3.0.0",
+  "to": "4.0.0",
+  "published": "2025-08-11T12:57:51.923Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "tomlkit",
+  "rank": 54,
+  "split": "holdout",
+  "from": "0.14.0",
+  "to": "0.15.0",
+  "published": "2026-05-10T07:38:22.245Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "propcache",
+  "rank": 56,
+  "split": "holdout",
+  "from": "0.4.1",
+  "to": "0.5.2",
+  "published": "2026-05-08T20:59:15.597Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "referencing",
+  "rank": 57,
+  "split": "holdout",
+  "from": "0.36.2",
+  "to": "0.37.0",
+  "published": "2025-10-13T15:30:47.625Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "jsonschema-specifications",
+  "rank": 58,
+  "split": "holdout",
+  "from": "2024.10.1",
+  "to": "2025.4.1",
+  "published": "2025-04-23T12:34:05.422Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "pillow",
+  "rank": 59,
+  "split": "holdout",
+  "from": "11.3.0",
+  "to": "12.0.0",
+  "published": "2025-10-15T18:21:27.791Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "pip",
+  "rank": 64,
+  "split": "holdout",
+  "from": "25.3",
+  "to": "26.0",
+  "published": "2026-01-31T01:40:52.252Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "pyasn1",
+  "rank": 65,
+  "split": "holdout",
+  "from": "0.5.1",
+  "to": "0.6.0",
+  "published": "2024-03-26T20:07:32.491Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "aiohappyeyeballs",
+  "rank": 67,
+  "split": "holdout",
+  "from": "1.8.1",
+  "to": "2.0.0",
+  "published": "2023-12-10T05:38:12.842Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "websockets",
+  "rank": 68,
+  "split": "dev",
+  "from": "16.1.1",
+  "to": "17.0",
+  "published": "2026-07-29T18:04:23.164Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "pytz",
+  "rank": 70,
+  "split": "holdout",
+  "from": "2025.2",
+  "to": "2026.1",
+  "published": "2026-03-03T06:52:14.862Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "wrapt",
+  "rank": 71,
+  "split": "holdout",
+  "from": "1.17.3",
+  "to": "2.0.0",
+  "published": "2025-10-19T23:45:25.177Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "tzdata",
+  "rank": 73,
+  "split": "dev",
+  "from": "2025.3",
+  "to": "2026.1",
+  "published": "2026-04-03T11:25:20.313Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "fastapi",
+  "rank": 74,
+  "split": "holdout",
+  "from": "0.141.1",
+  "to": "0.142.0",
+  "published": "2026-09-29T17:56:37.666Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "zipp",
+  "rank": 76,
+  "split": "holdout",
+  "from": "3.23.1",
+  "to": "4.1.0",
+  "published": "2026-05-18T20:08:57.045Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "pydantic-settings",
+  "rank": 77,
+  "split": "holdout",
+  "from": "1.99",
+  "to": "2.0.0",
+  "published": "2023-06-30T12:21:26.088Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "greenlet",
+  "rank": 78,
+  "split": "holdout",
+  "from": "2.0.2",
+  "to": "3.0.0",
+  "published": "2023-10-02T19:23:07.905Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "importlib-metadata",
+  "rank": 79,
+  "split": "holdout",
+  "from": "8.9.0",
+  "to": "9.0.0",
+  "published": "2026-03-20T06:42:55.665Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "wheel",
+  "rank": 80,
+  "split": "dev",
+  "from": "0.47.0",
+  "to": "0.48.0",
+  "published": "2026-08-11T22:02:26.100Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "trove-classifiers",
+  "rank": 82,
+  "split": "holdout",
+  "from": "2025.12.1.14",
+  "to": "2026.1.12.15",
+  "published": "2026-01-12T15:15:09.413Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "tenacity",
+  "rank": 83,
+  "split": "holdout",
+  "from": "8.5.0",
+  "to": "9.0.0",
+  "published": "2024-07-29T12:12:25.825Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "pyarrow",
+  "rank": 84,
+  "split": "holdout",
+  "from": "24.0.0",
+  "to": "25.0.0",
+  "published": "2026-07-10T08:25:23.153Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "pyasn1-modules",
+  "rank": 85,
+  "split": "holdout",
+  "from": "0.3.0",
+  "to": "0.4.0",
+  "published": "2024-03-26T20:38:13.122Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "sqlalchemy",
+  "rank": 87,
+  "split": "dev",
+  "from": "1.4.54",
+  "to": "2.0.0",
+  "published": "2023-01-26T22:58:05.435Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "hatchling",
+  "rank": 88,
+  "split": "holdout",
+  "from": "0.25.1",
+  "to": "1.0.0",
+  "published": "2022-05-18T00:01:55.842Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "jiter",
+  "rank": 90,
+  "split": "holdout",
+  "from": "0.16.0",
+  "to": "0.17.0",
+  "published": "2026-09-12T15:11:10.440Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "lxml",
+  "rank": 91,
+  "split": "dev",
+  "from": "5.4.0",
+  "to": "6.0.0",
+  "published": "2025-06-26T16:25:02.169Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "mypy-extensions",
+  "rank": 111,
+  "split": "dev",
+  "from": "0.4.4",
+  "to": "1.0.0",
+  "published": "2023-02-04T12:11:25.002Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "wcwidth",
+  "rank": 117,
+  "split": "dev",
+  "from": "0.8.5",
+  "to": "0.9.0",
+  "published": "2026-09-23T15:44:32.836Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "httpx2",
+  "rank": 121,
+  "split": "dev",
+  "from": "0.0.0",
+  "to": "2.0.0",
+  "published": "2026-05-12T17:59:20.403Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "httptools",
+  "rank": 133,
+  "split": "dev",
+  "from": "0.7.1",
+  "to": "0.8.0",
+  "published": "2026-05-25T22:16:50.434Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "docstring-parser",
+  "rank": 134,
+  "split": "dev",
+  "from": "0.17.0",
+  "to": "0.18.0",
+  "published": "2026-04-14T04:09:18.638Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "networkx",
+  "rank": 142,
+  "split": "dev",
+  "from": "2.8.8",
+  "to": "3.0",
+  "published": "2023-01-08T00:01:34.895Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "requests-toolbelt",
+  "rank": 144,
+  "split": "dev",
+  "from": "0.10.1",
+  "to": "1.0.0",
+  "published": "2023-05-01T04:11:28.427Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "tiktoken",
+  "rank": 156,
+  "split": "dev",
+  "from": "0.13.0",
+  "to": "0.14.0",
+  "published": "2026-08-17T19:48:31.788Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "cloudpickle",
+  "rank": 163,
+  "split": "dev",
+  "from": "2.2.1",
+  "to": "3.0.0",
+  "published": "2023-10-16T12:51:24.415Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "chardet",
+  "rank": 172,
+  "split": "dev",
+  "from": "6.0.0",
+  "to": "7.0.0",
+  "published": "2026-03-04T00:25:40.207Z"
+ }
+]

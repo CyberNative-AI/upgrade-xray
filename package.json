@@ -1,0 +1,22 @@
+{
+  "name": "upgrade-xray",
+  "version": "0.1.0",
+  "description": "See what a dependency update really changes, computed from the published npm and PyPI files.",
+  "type": "module",
+  "main": "src/main.js",
+  "private": true,
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "node src/main.js",
+    "test": "node --test test/"
+  },
+  "dependencies": {
+    "acorn": "8.19.0",
+    "acorn-walk": "8.3.5",
+    "apify": "3.7.2",
+    "semver": "7.8.5",
+    "smol-toml": "1.9.1",
+    "yaml": "2.9.1"
+  },
+  "license": "Apache-2.0"
+}
