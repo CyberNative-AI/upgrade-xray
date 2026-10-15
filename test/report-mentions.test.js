@@ -31,12 +31,22 @@ const HOSTILE = [
     '[t](u`rl) @j `x',
     'line\n\n```\n@k\n```\n\n    @l',
     'path/@m and (@n) and "@o"',
+    // Adjacent mentions: quoting the first must not leave the next one outside code.
+    'malformed archive @one@victim',
+    'a@b@c @p/@q @r.@s (@t)@u @v-@w x@@y @z,@aa',
+    '`@ab`@ac @ad`@ae`',
 ];
 
 test('the oracle finds the mentions it should', () => {
     assert.deepEqual(renderedMentions('hi @x and `@y`').map((s) => s.trim()), ['@x']);
     assert.equal(renderedMentions('failed at `@victim').length, 1, 'an unmatched backtick does not protect');
     assert.equal(renderedMentions('a &#64;b').length, 1, 'entities are decoded');
+});
+
+test('adjacent at-signs in an error stay inside one code span when rendered', () => {
+    const out = packageMarkdown({ name: 'pkg', ecosystem: 'npm', error: 'malformed archive @one@victim' });
+    assert.ok(md.render(out).includes('<code>@one@victim</code>'), md.render(out));
+    assert.deepEqual(renderedMentions(out), []);
 });
 
 test('every untrusted field of a package result renders without a mention', () => {

@@ -17,11 +17,14 @@ export const code = (s) => `\`${String(s).replace(/`/g, "'").replace(/\s+/g, ' '
 
 /**
  * Untrusted prose (error messages, finding titles, notes): one line, no HTML, entities, links,
- * backticks or backslash escapes, and every @-name in a code span.
+ * backticks or backslash escapes. Every word that contains an "@" becomes a code span as a whole,
+ * so no "@" is ever outside code, whatever is next to it ("@one@two" stays one span).
  */
+const ESC = { '\\': '\\\\', '<': '&lt;', '>': '&gt;', '&': '&amp;', '[': '\\[', ']': '\\]' };
 export function text(s) {
-    return String(s).replace(/\s+/g, ' ').replace(/[\\`<>&[\]]/g, (c) => ({ '\\': '\\\\', '`': "'", '<': '&lt;', '>': '&gt;', '&': '&amp;', '[': '\\[', ']': '\\]' })[c])
-        .replace(/(^|[^\w])@([\w.-]+(?:\/[\w.-]+)?)/g, '$1`@$2`');
+    return String(s).replace(/`/g, "'").split(/\s+/)
+        .map((w) => (w.includes('@') ? `\`${w}\`` : w.replace(/[\\<>&[\]]/g, (c) => ESC[c])))
+        .join(' ');
 }
 const loc = (l) => (l.line ? `${l.file}:${l.line}` : l.file);
 
