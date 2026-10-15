@@ -92,11 +92,21 @@ function parsePnpmKey(key) {
     return [k.slice(0, at), k.slice(at + 1).replace(/_.*$/, '')];
 }
 
+/** Every document of a YAML stream, as plain data. Throws on the first syntax error. */
+export function yamlDocuments(text) {
+    const docs = YAML.parseAllDocuments(text);
+    if (!Array.isArray(docs)) return [];
+    for (const d of docs) if (d.errors.length) throw d.errors[0];
+    return docs.map((d) => d.toJS({ maxAliasCount: 10000 }));
+}
+
 function parsePnpm(text) {
-    let doc;
-    try { doc = YAML.parse(text, { maxAliasCount: 10000 }); } catch (e) { throw new LockfileError(`pnpm-lock.yaml did not parse: ${e.message}`); }
+    let docs;
+    try { docs = yamlDocuments(text); } catch (e) { throw new LockfileError(`pnpm-lock.yaml did not parse: ${e.message}`); }
     const map = new Map();
-    for (const [key, v] of Object.entries({ ...(doc?.packages || {}) })) {
+    // pnpm 11 and later write the package manager's own lockfile as a first document, then the
+    // project's; packages from every document count.
+    for (const [key, v] of docs.flatMap((doc) => Object.entries({ ...(doc?.packages || {}) }))) {
         const [name, version] = parsePnpmKey(key);
         const res = v?.resolution || {};
         // pnpm omits the tarball for packages from the configured default registry, which may be

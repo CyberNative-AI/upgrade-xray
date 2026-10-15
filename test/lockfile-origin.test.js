@@ -85,6 +85,15 @@ test('pnpm: missing tarball is unknown; private tarball host is never looked up'
     assert.deepEqual((await outbound(before, after, { lockfileName: 'pnpm-lock.yaml', assumePublicRegistry: true })).names, ['quiet']);
 });
 
+test('pnpm 11+: packages from every document of a two-document lockfile are compared', async () => {
+    const lock = (pm, dep) => `---\nlockfileVersion: '9.0'\nimporters:\n  .:\n    packageManagerDependencies:\n      pnpm: {specifier: ${pm}, version: ${pm}}\npackages:\n  pnpm@${pm}:\n    resolution: {integrity: sha512-x}\n\n---\nlockfileVersion: '9.0'\npackages:\n  dep@${dep}:\n    resolution: {integrity: sha512-y}\n  internal-lib@${dep}:\n    resolution: {integrity: sha512-z, tarball: https://npm.corp.example/internal-lib/-/internal-lib-${dep}.tgz}\n`;
+    assert.deepEqual([...parseLockfile(lock('11.0.0', '1.0.0'), 'pnpm-lock.yaml').packages.keys()].sort(), ['dep', 'internal-lib', 'pnpm']);
+    const { names, io } = await outbound(lock('11.0.0', '1.0.0'), lock('11.1.0', '1.0.1'), { lockfileName: 'pnpm-lock.yaml', assumePublicRegistry: true });
+    assert.deepEqual(names.sort(), ['dep', 'pnpm']);
+    assert.deepEqual(io.kv.OUTPUT.nonRegistry.map((n) => n.name), ['internal-lib']);
+    assert.throws(() => parseLockfile("lockfileVersion: '9.0'\n---\npackages: {a: \"x\n", 'pnpm-lock.yaml'), /did not parse/);
+});
+
 test('uv: only the public PyPI index is looked up; missing source is unknown', async () => {
     const lock = (v) => `version = 1\nrequires-python = ">=3.10"\n\n[[package]]\nname = "pubpkg"\nversion = "${v}"\nsource = { registry = "https://pypi.org/simple" }\n\n[[package]]\nname = "corp-secret"\nversion = "${v}"\nsource = { registry = "https://pypi.corp.example/simple" }\n\n[[package]]\nname = "nosource"\nversion = "${v}"\n\n[[package]]\nname = "gitdep"\nversion = "${v}"\nsource = { git = "https://github.com/o/gitdep?rev=abc" }\n`;
     const { names, io } = await outbound(lock('1.0.0'), lock('1.1.0'), { lockfileName: 'uv.lock' });
