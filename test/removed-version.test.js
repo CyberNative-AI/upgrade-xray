@@ -30,6 +30,8 @@ const PKGS = {
     'rv-chalk': packument('rv-chalk', { versions: ['5.6.0', '5.6.2'], removed: { '5.6.1': '2025-09-08T13:00:00.000Z' } }),
     'rv-from': packument('rv-from', { versions: ['1.0.0', '1.0.2'], removed: { '1.0.1': '2025-09-08T13:00:00.000Z' } }),
     'rv-hold': packument('rv-hold', { versions: ['0.0.1-security'], removed: { '2.0.0': '2024-03-01T00:00:00.000Z' }, latest: '0.0.1-security' }),
+    'rv-pre': packument('rv-pre', { versions: ['1.0.0', '2.0.0-security'], removed: { '1.0.1': '2025-09-08T13:00:00.000Z' }, latest: '2.0.0-security' }),
+    'rv-tagless': packument('rv-tagless', { versions: ['1.0.0'], removed: { '1.0.1': '2025-09-08T13:00:00.000Z' }, latest: '3.0.0-security' }),
     'rv-never': packument('rv-never', { versions: ['1.0.0', '1.0.1'] }),
     'rv-odd': packument('rv-odd', { versions: ['1.0.0'], removed: { '1.0.1': '<img src=x onerror=alert(1)>' } }),
     'rv-lock': packument('rv-lock', { versions: ['1.0.0', '1.0.2'], removed: { '1.0.1': '2025-09-08T13:00:00.000Z' } }),
@@ -63,6 +65,8 @@ async function run(input, { fullDown = [] } = {}) {
 
 const item = (io, name) => io.items.find((i) => i.name === name);
 const REMOVED = /was published on 2025-09-08 and later removed from the npm registry, so its files can no longer be downloaded and compared/;
+// A version name proves neither that npm stepped in nor that the package was malicious.
+const ATTRIBUTION = /holding|malicious|replaced|-security/;
 
 test('removed "to" version: named as removed with its publish date, not analysed, not charged', async () => {
     const { io } = await run({ packages: ['npm:rv-chalk@5.6.0..5.6.1', 'npm:rv-ok@1.0.0..1.0.1'] });
@@ -71,7 +75,8 @@ test('removed "to" version: named as removed with its publish date, not analysed
     assert.match(it.error, /^rv-chalk@5\.6\.1 /);
     assert.match(it.error, REMOVED);
     assert.match(it.error, /security takedown or at its publisher's request/);
-    assert.doesNotMatch(it.error, /no published version matches|holding package/);
+    assert.doesNotMatch(it.error, /no published version matches/);
+    assert.doesNotMatch(it.error, ATTRIBUTION);
     assert.equal(item(io, 'rv-ok').verdict, 'clean');
     assert.deepEqual(io.charges.map((c) => c.eventName), ['package-diff']);
     // The report code-quotes name@version so it can never mention a GitHub account.
@@ -84,12 +89,24 @@ test('removed "from" version and a "v" prefix are recognised', async () => {
     assert.equal(io.charges.length, 0);
 });
 
-test('a package npm replaced with a security holding package says so', async () => {
-    const { io } = await run({ packages: ['npm:rv-hold@2.0.0'] });
-    const e = item(io, 'rv-hold').error;
-    assert.match(e, /^rv-hold@2\.0\.0 was published on 2024-03-01 and later removed/);
-    assert.match(e, /replaced the whole package with a security holding package \(0\.0\.1-security\)/);
-});
+// None of these may turn a "-security" latest version into a claim of npm intervention or malice.
+for (const [label, spec, re] of [
+    // The layout npm's own placeholder leaves: every real version gone, latest is x.y.z-security.
+    ['every version gone, latest is a "-security" version', 'npm:rv-hold@2.0.0', /^rv-hold@2\.0\.0 was published on 2024-03-01 and later removed/],
+    // An ordinary prerelease that happens to end in "-security", with a stable release still listed.
+    ['a stable release remains beside a "-security" prerelease', 'npm:rv-pre@1.0.0..1.0.1', /^rv-pre@1\.0\.1 was published on 2025-09-08 and later removed/],
+    // A "latest" tag naming a version the packument has no metadata for.
+    ['"latest" names a "-security" version with no metadata', 'npm:rv-tagless@1.0.0..1.0.1', /^rv-tagless@1\.0\.1 was published on 2025-09-08 and later removed/],
+]) {
+    test(`removed version, ${label}: no holding-package or malice claim`, async () => {
+        const { io } = await run({ packages: [spec] });
+        const e = io.items[0].error;
+        assert.match(e, re);
+        assert.doesNotMatch(e, ATTRIBUTION);
+        assert.doesNotMatch(io.kv.REPORT, ATTRIBUTION);
+        assert.equal(io.charges.length, 0);
+    });
+}
 
 test('a version the registry never had, or a range, keeps the original message', async () => {
     const { io } = await run({ packages: ['npm:rv-never@1.0.0..1.0.9', 'npm:rv-ok@1.0.0..^7'] });

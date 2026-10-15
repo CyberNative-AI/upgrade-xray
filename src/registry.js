@@ -89,11 +89,7 @@ async function npmRemovedReason(name, version) {
     if (!Object.hasOwn(doc.time || {}, v) || Object.hasOwn(doc.versions || {}, v)) return null;
     const t = new Date(doc.time[v]);
     const when = Number.isNaN(t.getTime()) ? '' : ` on ${t.toISOString().slice(0, 10)}`;
-    const latest = doc['dist-tags']?.latest;
-    const holding = typeof latest === 'string' && semver.valid(latest) && /-security$/.test(latest)
-        ? ` npm has replaced the whole package with a security holding package (${latest}), which usually means it contained malicious code.`
-        : '';
-    return `${name}@${v} was published${when} and later removed from the npm registry, so its files can no longer be downloaded and compared. npm removes a version after a security takedown or at its publisher's request; a lockfile or pull request that still pins it needs a closer look.${holding}`;
+    return `${name}@${v} was published${when} and later removed from the npm registry, so its files can no longer be downloaded and compared. npm removes a version after a security takedown or at its publisher's request; a lockfile or pull request that still pins it needs a closer look.`;
 }
 
 /** Resolve "from"/"to" versions of an npm package. */
