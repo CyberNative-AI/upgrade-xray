@@ -31,7 +31,7 @@
         "lockfileBefore": {
             "title": "Lockfile before the update (text)",
             "type": "string",
-            "description": "Paste the old package-lock.json, npm-shrinkwrap.json, pnpm-lock.yaml, uv.lock or poetry.lock (up to 20 MB). With both lockfiles the run makes one lockfile report covering every changed package. Paste only a lockfile you are allowed to process, with credentials, tokens and signed URLs removed. It stays in this run's storage in your account; the names of packages proven to come from the public registry are sent to that registry, and nothing else is looked up.",
+            "description": "Paste the old package-lock.json, npm-shrinkwrap.json, pnpm-lock.yaml, uv.lock, poetry.lock or requirements.txt (up to 20 MB). With both lockfiles the run makes one lockfile report covering every changed package. Paste only a lockfile you are allowed to process, with credentials, tokens and signed URLs removed. It stays in this run's storage in your account; the names of packages proven to come from the public registry are sent to that registry, and nothing else is looked up.",
             "editor": "textarea",
             "sectionCaption": "Lockfile mode"
         },
@@ -50,7 +50,7 @@
         "assumePublicRegistry": {
             "title": "Entries without a recorded source come from the public registry",
             "type": "boolean",
-            "description": "pnpm, Poetry and some npm lockfiles do not record where a package came from. Those entries are skipped (and listed) unless you confirm here that they all come from the public npm registry or PyPI. Leave this off if the project uses a private registry or mirror: their names would be sent to the public registry.",
+            "description": "pnpm, Poetry, requirements files without an --index-url line and some npm lockfiles do not record where a package came from. Those entries are skipped (and listed) unless you confirm here that they all come from the public npm registry or PyPI. Leave this off if the project uses a private registry or mirror: their names would be sent to the public registry.",
             "default": false
         },
         "includeAddedPackages": {

@@ -1,4 +1,4 @@
-// Parse npm, pnpm, uv and poetry lockfiles and list the package versions that changed.
+// Parse npm, pnpm, uv and poetry lockfiles and pip requirements files, and list the package versions that changed.
 import YAML from 'yaml';
 import { parse as parseToml } from 'smol-toml';
 import semver from 'semver';
@@ -32,6 +32,7 @@ export function detectType(text, hint = '') {
     if (/pnpm-lock\.ya?ml/.test(h)) return 'pnpm';
     if (/uv\.lock/.test(h)) return 'uv';
     if (/poetry\.lock/.test(h)) return 'poetry';
+    if (/\.txt$/.test(h)) return 'requirements';
     const t = text.trimStart();
     if (t.startsWith('{')) return 'npm';
     if (/^lockfileVersion:\s*['"]?\d/m.test(text)) return 'pnpm';
@@ -39,7 +40,8 @@ export function detectType(text, hint = '') {
         if (/^revision\s*=|^requires-python\s*=/m.test(text) || /source\s*=\s*\{\s*(registry|editable|virtual)\s*=/.test(text)) return 'uv';
         return 'poetry';
     }
-    throw new LockfileError('could not recognise the lockfile format (supported: package-lock.json, npm-shrinkwrap.json, pnpm-lock.yaml, uv.lock, poetry.lock)');
+    if (looksLikeRequirements(text)) return 'requirements';
+    throw new LockfileError('could not recognise the lockfile format (supported: package-lock.json, npm-shrinkwrap.json, pnpm-lock.yaml, uv.lock, poetry.lock, requirements.txt)');
 }
 
 /** Strip credentials and query strings (tokens, signed-URL parameters) from a recorded source before it is reported. */
@@ -158,9 +160,101 @@ function parsePoetry(text) {
     return map;
 }
 
+// ---- pip requirements files ----
+// Only exact pins (name==1.2.3 or name===1.2.3) name a version that can be compared. A range
+// (name>=1.2) or an unpinned name is listed, not looked up. Includes (-r, -c) are not followed.
+// Origin: pip's index can be set outside the file (pip.conf, PIP_INDEX_URL), so a file with no
+// index option has no recorded origin. A file whose only index is the public PyPI is public. Any
+// other index, an extra index or --find-links makes every pin private: pip may take any name
+// from any of them, so no name of the file may be sent to the public registry.
+
+const REQ_NAME = /^([A-Za-z0-9][A-Za-z0-9._-]*)\s*(\[[^\]]*\])?\s*/;
+
+/** Logical lines: comments removed, backslash continuations joined, blank lines dropped. */
+function requirementLines(text) {
+    const out = [];
+    let cur = '';
+    for (const raw of text.split(/\r?\n/)) {
+        const line = raw.replace(/(^|\s)#.*$/, '');
+        if (/\\\s*$/.test(line)) { cur += line.replace(/\\\s*$/, ' '); continue; }
+        cur += line;
+        if (cur.trim()) out.push(cur.trim());
+        cur = '';
+    }
+    if (cur.trim()) out.push(cur.trim());
+    return out;
+}
+
+const REQ_OPTION = /^(-[a-zA-Z]|--[a-z][a-z-]*)(?=[\s=]|$)/;
+const REQ_OP = String.raw`(?:===?|~=|!=|<=?|>=?)\s*[^\s;,]+`;
+// name [extras] [version specifiers | @ url] [; marker] [--hash=...]...
+const REQ_LINE = new RegExp(String.raw`^[A-Za-z0-9][A-Za-z0-9._-]*\s*(?:\[[^\]]*\])?\s*(?:${REQ_OP}(?:\s*,\s*${REQ_OP})*|@\s*\S+)?\s*(?:;[^-]*(?:-(?!-hash)[^-]*)*)?(?:\s*--hash[=\s]\S+)*\s*$`);
+
+const isRequirementLine = (l) => REQ_OPTION.test(l) || REQ_LINE.test(l);
+
+function looksLikeRequirements(text) {
+    const lines = requirementLines(text);
+    return lines.length > 0 && lines.every(isRequirementLine);
+}
+
+/** Split an option line into [option, value]. */
+function optionOf(line) {
+    const m = line.match(/^(-[a-zA-Z]|--[a-z][a-z-]*)(?:\s*=\s*|\s+)?(.*)$/);
+    return [m[1], (m[2] || '').trim().split(/\s+/)[0] || ''];
+}
+
+function parseRequirements(text) {
+    const lines = requirementLines(text);
+    const indexes = []; let extra = false; let noIndex = false;
+    const pins = []; const other = [];
+    for (const [i, line] of lines.entries()) {
+        if (!isRequirementLine(line)) throw new LockfileError(`requirements file: requirement ${i + 1} is not in a form this tool reads (name, extras, version specifiers, @ URL, marker, hashes)`);
+        if (REQ_OPTION.test(line)) {
+            const [opt, val] = optionOf(line);
+            if (opt === '-i' || opt === '--index-url') indexes.push(val);
+            else if (opt === '--extra-index-url' || opt === '-f' || opt === '--find-links') extra = true;
+            else if (opt === '--no-index') noIndex = true;
+            else if (opt === '-e' || opt === '--editable') {
+                const name = (val.match(/[#&]egg=([A-Za-z0-9._-]+)/) || [])[1];
+                if (name) other.push({ name, origin: classifyOrigin(val, 'pypi') === 'git' ? 'git' : 'local', source: val });
+            }
+            continue; // -r/-c includes and other options carry no package of this file
+        }
+        const m = line.match(REQ_NAME);
+        if (!m) continue;
+        const name = normPy(m[1]);
+        const rest = line.slice(m[0].length).replace(/;.*$/, '').replace(/--hash[=\s]\S+/g, '').trim();
+        if (rest.startsWith('@')) {
+            const url = rest.slice(1).trim().split(/\s+/)[0];
+            const o = classifyOrigin(url, 'pypi');
+            other.push({ name, origin: o === 'public' ? 'url' : o, source: url });
+            continue;
+        }
+        const pin = rest.match(/^===?\s*([0-9][A-Za-z0-9.!+_-]*)$/);
+        if (pin && !pin[1].includes('*')) pins.push({ name, version: pin[1] });
+        else other.push({ name, origin: 'range', spec: rest || 'any version' });
+    }
+    let origin;
+    if (noIndex) origin = 'local';
+    else if (extra || indexes.length > 1) origin = 'private';
+    else if (indexes.length === 1) origin = classifyOrigin(indexes[0], 'pypi') === 'public' ? 'public' : 'private';
+    else origin = 'unknown';
+    const source = origin === 'private' || origin === 'public' ? (indexes[0] || 'an extra index or --find-links') : null;
+    const map = new Map();
+    for (const p of pins) addVer(map, p.name, p.version, { origin, source });
+    // Unpinned and non-index entries are never looked up. They are keyed by their spec or cleaned
+    // source, so a change to one is listed.
+    for (const o of other) {
+        const key = o.origin === 'range' ? o.spec.slice(0, 200) : redactSource(o.source);
+        addVer(map, o.name, key, { origin: o.origin, source: o.origin === 'range' ? null : o.source });
+    }
+    return map;
+}
+
 export function parseLockfile(text, hint = '') {
     const type = detectType(text, hint);
-    const map = type === 'npm' ? parseNpm(text) : type === 'pnpm' ? parsePnpm(text) : type === 'uv' ? parseUv(text) : parsePoetry(text);
+    const map = type === 'npm' ? parseNpm(text) : type === 'pnpm' ? parsePnpm(text) : type === 'uv' ? parseUv(text)
+        : type === 'requirements' ? parseRequirements(text) : parsePoetry(text);
     return { type, ecosystem: ecosystemOf(type), packages: map };
 }
 
@@ -177,7 +271,7 @@ function cmpVersions(ecosystem, a, b) {
     return 0;
 }
 
-const ORIGIN_LABEL = { private: 'another registry or host', git: 'git', local: 'a local path', url: 'a URL', unknown: 'no recorded origin' };
+const ORIGIN_LABEL = { private: 'another registry or host', git: 'git', local: 'a local path', url: 'a URL', unknown: 'no recorded origin', range: 'no exact version' };
 
 /**
  * Compare two parsed lockfiles. Returns { updated: [{name, from, to}], added: [{name, to}], removed: [{name, from}],

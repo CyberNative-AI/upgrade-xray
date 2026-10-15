@@ -168,6 +168,7 @@ const UNRECORDED_WHY = {
     poetry: 'Poetry does not record its default source',
     npm: 'this package-lock.json has no "resolved" URL for them',
     uv: 'this uv.lock has no source for them',
+    requirements: 'this requirements file names no package index, and pip can be set to another index outside it',
 };
 
 function overallLines(verdict, coverage, results) {
@@ -177,7 +178,7 @@ function overallLines(verdict, coverage, results) {
     if (coverage && !coverage.complete) {
         const gaps = [];
         if (coverage.failed) gaps.push(`${coverage.failed} could not be analysed`);
-        if (coverage.notLookedUp) gaps.push(`${coverage.notLookedUp} not looked up (not proven to come from the public registry)`);
+        if (coverage.notLookedUp) gaps.push(`${coverage.notLookedUp} not looked up (see the list below)`);
         if (coverage.overLimit) gaps.push(`${coverage.overLimit} above the package limit`);
         if (coverage.addedNotScanned) gaps.push(`${coverage.addedNotScanned} new package(s) not scanned`);
         if (coverage.packagesWithUnparsedFiles) gaps.push(`${coverage.packagesWithUnparsedFiles} analysed package(s) only partly analysed (files pattern-scanned or not read, or an artifact not compared; listed with each package below)`);
@@ -237,8 +238,10 @@ export function lockfileReport(results, diff, { skipped = [], title = 'Upgrade X
         out.push('');
     }
     if (diff.nonRegistry.length) {
-        out.push('**Not looked up (origin not proven to be the public registry; names were not sent anywhere):**', '');
-        for (const n of diff.nonRegistry.slice(0, 30)) out.push(`- ${code(n.name)} ${text(n.to)} from ${code(n.source)}`);
+        out.push(diff.nonRegistry.some((n) => n.origin === 'range')
+            ? '**Not looked up (no exact version, or origin not proven to be the public registry; names were not sent anywhere):**'
+            : '**Not looked up (origin not proven to be the public registry; names were not sent anywhere):**', '');
+        for (const n of diff.nonRegistry.slice(0, 30)) out.push(n.origin === 'range' ? `- ${code(n.name)} ${code(n.to)} (a version range, not an exact version)` : `- ${code(n.name)} ${text(n.to)} from ${code(n.source)}`);
         if (diff.nonRegistry.length > 30) out.push(`- …and ${diff.nonRegistry.length - 30} more in OUTPUT.`);
         const unrecorded = diff.nonRegistry.filter((n) => n.origin === 'unknown').length;
         if (unrecorded) out.push('', `${unrecorded} of these ${unrecorded === 1 ? 'has' : 'have'} no recorded origin: ${UNRECORDED_WHY[diff.type] || 'the lockfile does not say where they came from'}. If this project installs only from the public registry, ${unrecorded === 1 ? 'it' : 'they'} can be checked: set \`assumePublicRegistry\` to true (in the GitHub Action: \`assume-public-registry: true\`). Leave it off if the project uses a private registry or mirror.`);
