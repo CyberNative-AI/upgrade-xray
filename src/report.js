@@ -4,6 +4,7 @@ const VERDICT = {
     notice: '🟡 WORTH A LOOK',
     clean: '🟢 NOTHING NEW FOUND',
     error: '⚪ NOT ANALYSED',
+    incomplete: '⚪ INCOMPLETE',
 };
 const SEV = { high: 'High', medium: 'Medium', low: 'Low', info: 'Info' };
 
@@ -28,7 +29,13 @@ export function packageMarkdown(r, { heading = '###', maxFindings = 25 } = {}) {
     const sec = r.findings.filter((f) => f.category !== 'breaking' && f.severity !== 'info');
     const brk = r.findings.filter((f) => f.category === 'breaking');
     const info = r.findings.filter((f) => f.category !== 'breaking' && f.severity === 'info');
-    if (!sec.length) lines.push(r.addedPackage ? 'New package in the tree; no install script or high-risk indicator found.' : 'No new install scripts, network/shell/eval calls, risky indicators or dependencies found.');
+    const cov = r.coverage;
+    const partial = cov && cov.complete === false;
+    if (!sec.length) {
+        const base = r.addedPackage ? 'New package in the tree; no install script or high-risk indicator found' : 'No new install scripts, network/shell/eval calls, risky indicators or dependencies found';
+        lines.push(`${base}${partial ? ' in the files that were inspected' : ''}.`);
+    }
+    if (partial) lines.push('', `_Coverage: ${coverageText(cov)}._`);
     for (const f of sec.slice(0, maxFindings)) {
         const where = f.locations?.length ? ` — ${f.locations.slice(0, 3).map((l) => code(loc(l))).join(', ')}${(f.locations.length > 3 || f.moreLocations) ? ' …' : ''}` : '';
         const extra = f.detail && !f.title.includes(f.detail) ? `: ${code(f.detail)}` : '';
@@ -51,15 +58,47 @@ export function packageMarkdown(r, { heading = '###', maxFindings = 25 } = {}) {
     return lines.join('\n');
 }
 
+export function coverageText(cov) {
+    const parts = [];
+    if (cov.unparsedFilesCount) parts.push(`${cov.unparsedFilesCount} file(s) only pattern-scanned, not fully parsed (${cov.unparsedFiles.slice(0, 3).map((f) => code(`${f.file}: ${f.reason}`)).join(', ')}${cov.unparsedFilesCount > 3 ? ' …' : ''})`);
+    if (cov.skippedFilesCount) parts.push(`${cov.skippedFilesCount} file(s) not read (${cov.skippedFiles.slice(0, 3).map((f) => code(`${f.file}: ${f.reason}`)).join(', ')}${cov.skippedFilesCount > 3 ? ' …' : ''})`);
+    if (cov.failedArtifacts?.length) parts.push(`not compared: ${cov.failedArtifacts.map(code).join(', ')}`);
+    return parts.join('; ') || 'partial';
+}
+
+const OVERALL = {
+    review: '🔴 Review before merge',
+    notice: '🟡 Worth a look',
+    clean: '🟢 Nothing new found in any change',
+    incomplete: '⚪ Incomplete — some changes were not analysed',
+    error: '⚪ Not analysed — no change could be analysed',
+};
+
+function overallLines(verdict, coverage) {
+    if (!verdict) return [];
+    const out = [`**Overall: ${OVERALL[verdict]}**`];
+    if (coverage && !coverage.complete) {
+        const gaps = [];
+        if (coverage.failed) gaps.push(`${coverage.failed} could not be analysed`);
+        if (coverage.notLookedUp) gaps.push(`${coverage.notLookedUp} not looked up (not proven to come from the public registry)`);
+        if (coverage.overLimit) gaps.push(`${coverage.overLimit} above the package limit`);
+        if (coverage.addedNotScanned) gaps.push(`${coverage.addedNotScanned} new package(s) not scanned`);
+        out.push(`Not covered: ${gaps.join(', ')}.`);
+    }
+    if (coverage?.packagesWithUnparsedFiles) out.push(`${coverage.packagesWithUnparsedFiles} analysed package(s) contain files that were only pattern-scanned or not read; see each package.`);
+    out.push('');
+    return out;
+}
+
 export function summaryLine(results) {
     const c = { review: 0, notice: 0, clean: 0, error: 0 };
     for (const r of results) c[r.error ? 'error' : r.verdict]++;
     return c;
 }
 
-export function packagesReport(results, { title = 'Upgrade X-Ray' } = {}) {
+export function packagesReport(results, { title = 'Upgrade X-Ray', verdict, coverage } = {}) {
     const c = summaryLine(results);
-    const out = [`## ${title}`, '', `**${c.review} to review · ${c.notice} worth a look · ${c.clean} nothing new${c.error ? ` · ${c.error} not analysed` : ''}**`, ''];
+    const out = [`## ${title}`, '', ...overallLines(verdict, coverage), `**${c.review} to review · ${c.notice} worth a look · ${c.clean} nothing new${c.error ? ` · ${c.error} not analysed` : ''}**`, ''];
     for (const r of sortResults(results)) out.push(packageMarkdown(r));
     out.push(`<sub>${DISCLAIMER}</sub>`, '');
     return out.join('\n');
@@ -70,9 +109,9 @@ export function sortResults(results) {
     return [...results].sort((a, b) => RANK[a.error ? 'error' : a.verdict] - RANK[b.error ? 'error' : b.verdict] || a.name.localeCompare(b.name));
 }
 
-export function lockfileReport(results, diff, { skipped = [], title = 'Upgrade X-Ray — lockfile report' } = {}) {
+export function lockfileReport(results, diff, { skipped = [], title = 'Upgrade X-Ray — lockfile report', verdict, coverage } = {}) {
     const c = summaryLine(results);
-    const out = [`## ${title}`, '',
+    const out = [`## ${title}`, '', ...overallLines(verdict, coverage),
         `${diff.type} lockfile: **${diff.updated.length} updated, ${diff.added.length} added, ${diff.removed.length} removed** package versions.`, '',
         `**${c.review} to review · ${c.notice} worth a look · ${c.clean} nothing new${c.error ? ` · ${c.error} not analysed` : ''}**`, ''];
     const sorted = sortResults(results);
@@ -87,9 +126,16 @@ export function lockfileReport(results, diff, { skipped = [], title = 'Upgrade X
         }
         out.push('', '</details>', '');
     }
+    if (diff.originChanges?.length) {
+        out.push('**Moved to the public registry from another source** (scanned as new packages; check that the public package is the one you meant — a common dependency-confusion pattern):', '');
+        for (const n of diff.originChanges.slice(0, 30)) out.push(`- ${n.name} ${n.to} (was: ${n.fromOrigin})`);
+        out.push('');
+    }
     if (diff.nonRegistry.length) {
-        out.push('**Not from the registry (not analysed):**', '');
+        out.push('**Not looked up (origin not proven to be the public registry; names were not sent anywhere):**', '');
         for (const n of diff.nonRegistry.slice(0, 30)) out.push(`- ${n.name} ${n.to} from ${code(n.source)}`);
+        if (diff.nonRegistry.length > 30) out.push(`- …and ${diff.nonRegistry.length - 30} more in OUTPUT.`);
+        if (diff.nonRegistry.some((n) => n.origin === 'unknown')) out.push('', `Entries with no recorded origin can be checked if you confirm they all come from the public registry: set \`assumePublicRegistry\` to true.`);
         out.push('');
     }
     if (skipped.length) out.push(`Skipped ${skipped.length} change(s) above the package limit: ${skipped.slice(0, 30).map((s) => `${s.name} ${s.to}`).join(', ')}${skipped.length > 30 ? ' …' : ''}`, '');

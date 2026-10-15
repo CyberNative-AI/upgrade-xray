@@ -2,15 +2,15 @@
 
 **See what a dependency update really changes before you merge it — computed from the published npm and PyPI files, not from the changelog.**
 
-For each update, Upgrade X-Ray downloads the old and new published artifacts (npm tarball, PyPI wheel and sdist), verifies them against the registry's checksums and compares them statically. Nothing is installed or executed. It reports:
+For each update, Upgrade X-Ray downloads the old and new published artifacts (npm tarball, PyPI wheel and sdist) from the public registry hosts only, refuses any download that does not match a registry checksum, and compares them statically. Nothing is installed or executed. It reports:
 
 - **New install-time code** — new or changed `preinstall` / `install` / `postinstall` scripts, implicit `node-gyp` builds, `setup.py` command hooks, in-tree build backends, and `.pth` / `sitecustomize` files that run at every Python start-up.
 - **New network, shell or eval calls** — new uses of `child_process`, `subprocess`, `fetch`, `http(s)`, `socket`, `requests`, `eval`, `exec`, `new Function`, `vm`, and code launched with inline or base64-encoded payloads.
 - **High-risk indicators** — obfuscation (including code hidden after long runs of spaces and payloads hidden in invisible Unicode characters), reads of credential files (`.npmrc`, `.ssh`, cloud and wallet keys), exfiltration-style endpoints, token theft and self-publishing, persistence, overrides of global `fetch` / `XMLHttpRequest` / wallet functions, and new executables.
 - **Removed functions** — exports removed from each entry point or module (JS, TypeScript declarations, Python public names), removed import paths and commands, a switch to ES modules, and raised engine / Python requirements.
-- **New dependencies** — with their age and owner: a dependency first published days before the release by *different* maintainers is flagged high; one that does not exist on the registry, or comes from git or a URL, is flagged high.
+- **New dependencies** — with their age and listed owners: a dependency first published days before the release that shares no listed maintainer or repository with the package (or lists none) is flagged high; one that does not exist on the registry, or comes from git or a URL, is flagged high. Owners are compared as the registry lists them (npm maintainers and repository URLs, PyPI's self-declared author emails and project URLs); they are not verified identities.
 
-Each package gets a verdict: **🔴 review before merge**, **🟡 worth a look**, or **🟢 nothing new found**.
+Each package gets a verdict: **🔴 review before merge**, **🟡 worth a look**, or **🟢 nothing new found**. When some files of a package could only be pattern-scanned or not read at all, the package says so and lists them.
 
 ## Two ways to run it
 
@@ -28,12 +28,16 @@ Each package gets a verdict: **🔴 review before merge**, **🟡 worth a look**
 { "lockfileBefore": "<old package-lock.json>", "lockfileAfter": "<new package-lock.json>" }
 ```
 
-Supported: `package-lock.json` / `npm-shrinkwrap.json` (v1–v3), `pnpm-lock.yaml` (v5–v9), `uv.lock`, `poetry.lock`. You can also pass raw URLs (`lockfileBeforeUrl`, `lockfileAfterUrl`). Packages new to the tree are checked for install scripts and high-risk indicators. Packages that come from private registries, git, URLs or local paths are listed but **not looked up** — their names are not sent to any registry.
+Supported: `package-lock.json` / `npm-shrinkwrap.json` (v1–v3), `pnpm-lock.yaml` (v5–v9), `uv.lock`, `poetry.lock`, pasted as text (up to 20 MB each). Packages new to the tree are checked for install scripts and high-risk indicators.
+
+Only entries whose recorded source is the public registry (`https://registry.npmjs.org`, `https://registry.yarnpkg.com`, `https://pypi.org`, `https://files.pythonhosted.org`) are looked up. Entries from private registries, mirrors, git, URLs or local paths are listed but **not looked up** — their names are not sent anywhere. pnpm and Poetry do not record the source of packages from the default registry, and some npm lockfiles omit it; those entries are also listed and skipped unless you set `assumePublicRegistry` to confirm that they all come from the public registry. Leave it off if the project uses a private registry or mirror. A package that moves from another source to the public registry is scanned as new and called out, since that is a common dependency-confusion pattern.
 
 ## Output
 
 - **Dataset** — one item per package: verdict, findings with file and line, new and removed dependencies, API changes, and a ready-to-post markdown section.
 - **Key-value store** — `REPORT` (the full markdown verdict, e.g. for a pull-request comment) and `OUTPUT` (summary JSON).
+
+`OUTPUT.verdict` is `review`, `notice` or `clean` when every change in scope was analysed. It is `incomplete` when some changes were not analysed (failed, not looked up, or above the package limit) and nothing needing review was found in the rest, and `error` when no change could be analysed. `OUTPUT.complete` and `OUTPUT.coverage` give the counts; check them before treating a run as clean.
 
 AI agents can call it through the Apify MCP server; the markdown is designed to be pasted into a pull-request review as is.
 
@@ -46,7 +50,7 @@ Pay per event, no subscription:
 | Package diff (package mode) | $0.02 per package analysed |
 | Lockfile report (lockfile mode) | $0.25 per report, up to 150 changed packages (configurable to 300) |
 
-Packages that cannot be analysed (not found, too large) are not charged. A run never goes over the maximum charge you set.
+In package mode, a package that cannot be analysed (not found, too large, failed checksum) is not charged. In lockfile mode, the report is charged once if at least one package was analysed, even if others failed or were skipped; a report where no package could be analysed is not charged. A run never goes over the maximum charge you set.
 
 ## Measured accuracy
 
@@ -62,11 +66,11 @@ Measured on 2026-10-15 with the detectors frozen in advance. Detectors were tune
 | First compromised version of each package only | 698 / 703 |
 | Compromised first releases (no earlier version, scanned as new packages) | 43 / 47 |
 
-Excluded and listed separately: 12 samples that are a git checkout rather than the published file, 2 samples with no code, and 28 whose earlier clean version is no longer on the registry.
+Excluded and listed separately: 12 samples that are a git checkout rather than the published file, 2 samples with no code, 27 where the registry no longer serves the package or the earlier version needed for the comparison, and 1 whose download was above the size limit. "First compromised version" uses semantic-version order for npm and PEP 440 order for PyPI.
 
 **Read these numbers with care.** Most samples come from a few large worm campaigns (September and November 2025, May–June 2026) that add install scripts and obvious credential theft — the easy case for this kind of tool. The misses are the targeted attacks that hid key theft inside normal code paths of the package: `xrpl` 4.2.1–4.2.4 and 2.14.2, `@solana/web3.js` 1.95.7, `litellm` 1.82.7, `lightning` 2.6.2–2.6.3 and `guardrails-ai` 0.10.1 (`xrpl` 2.14.2, `lightning` and `guardrails-ai` got "worth a look", the rest "nothing new"). PyPI coverage is small. Treat the tool as a reader's guide to what changed, not a malware scanner.
 
-**Benign major bumps.** The latest major-version bump of the most-downloaded packages on npm and PyPI (ranking from ecosyste.ms, picked in rank order, not by hand):
+**Benign major bumps.** The latest major-version bump of the most-downloaded packages on npm and PyPI (ranking from ecosyste.ms, picked in rank order, not by hand), released between 2021-10-01 and 2026-10-01. For 0.x packages a minor bump (0.4 → 0.5) counts as a major one:
 
 | Holdout set | "Review before merge" (false alarm) | "Worth a look" |
 |---|---|---|
@@ -76,15 +80,20 @@ The full per-sample results, the selection script and the harness are in [`fixtu
 
 ## Limits
 
-- Static analysis of JavaScript, TypeScript and Python. Native binaries are reported as new files, not analysed. Lines and files above the size limits are skipped and noted.
+- Static analysis of JavaScript and Python with real parsers (acorn, Python's `ast`). TypeScript sources, files above the 6 MB parser limit and files that do not parse get a pattern scan only; each package lists them. Files above the size limits, encrypted entries and unsupported compression are not read and are listed. Native binaries are reported as new files, not analysed.
 - A dependency's age and owner are read from the registry at run time.
 - npm packages are compared as published (one tarball). For PyPI, the best wheel and the sdist are compared separately and merged; very large distributions (over 60 MB) are not analysed.
 - A finding is a change worth reading, not proof of malice; an empty report does not prove a package is safe.
 
-## Privacy
+## Privacy and what to send
 
-Package mode sends only package names and versions to the public registries. In lockfile mode, the lockfile text is read inside the run and stored nowhere except the run's own Apify storage, under your account's retention settings. Private, git and URL dependencies are never looked up.
+The Actor runs in your Apify account and keeps its input, logs and results in that run's storage, under your retention settings; you can delete them at any time. It sends nothing to the publisher and has no publisher credentials or telemetry. It contacts only the public npm registry and PyPI.
+
+- **What leaves the run:** package names and versions that are proven to come from the public registry (or that you confirm with `assumePublicRegistry`), sent to that registry. Nothing else is looked up.
+- **What to paste:** only lockfiles you are allowed to process, with credentials, tokens and signed URLs removed. Upgrade X-Ray strips user names, passwords and query strings from the sources it reports, but the pasted input itself is stored as you gave it.
+- **What the report contains:** package names, versions and the sources of entries that were not looked up. Treat `REPORT`, `OUTPUT` and the dataset as being as sensitive as the lockfile.
+- **Sharing:** Apify lets you share a run with an Actor's developer, and putting a run link in an Actor issue grants that access. A shared run exposes its input, logs and storages to us. For sensitive lockfiles, keep your account's resource access restricted, leave automatic sharing with developers off, and do not post run links. We never ask for private lockfiles, tokens or run links; for support, send a small synthetic lockfile that reproduces the problem.
 
 ## About
 
-Built and maintained by **CyberNative AI LLC**, an AI-run company: the tool, the detectors and this README were written by AI agents. Issues and false-alarm reports are welcome on the repository.
+Built and maintained by **CyberNative AI LLC**, an AI-run company: the tool, the detectors and this README were written by AI agents. Report false alarms, misses or errors in this README as issues on the repository, using public packages or synthetic examples only. Licensed under the Apache License 2.0 (see `LICENSE`); dependencies keep their own licenses.

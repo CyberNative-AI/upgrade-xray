@@ -4,7 +4,7 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { parse as parseToml } from 'smol-toml';
-import { scanJs, scanDts } from './js-scan.js';
+import { scanJs, scanDts, AST_LIMIT as JS_AST_LIMIT } from './js-scan.js';
 import { scanString, scanSourceText } from './signals.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -82,6 +82,26 @@ function scanJsCached(hash, src, opts) {
     return r;
 }
 
+const MAX_COVERAGE_ITEMS = 20;
+
+/** Record a file that was skipped or only pattern-scanned, so "nothing new found" is never silent about it. */
+function gap(snap, list, file, reason) {
+    const c = snap.coverage;
+    c[`${list}Count`]++;
+    c.complete = false;
+    if (c[list].length < MAX_COVERAGE_ITEMS) c[list].push({ file, reason });
+}
+
+/** Skip files the archive reader could not or would not extract. Returns true when skipped. */
+function skipUnread(snap, p, buf) {
+    if (buf.oversize) { gap(snap, 'skippedFiles', p, `${buf.oversize} bytes, above the per-file limit`); snap.notes.push(`${p} skipped (${buf.oversize} bytes)`); return true; }
+    if (buf.encrypted) { gap(snap, 'skippedFiles', p, 'encrypted'); snap.notes.push(`${p} skipped (encrypted)`); return true; }
+    if (buf.unsupported !== undefined) { gap(snap, 'skippedFiles', p, `unsupported compression method ${buf.unsupported}`); snap.notes.push(`${p} skipped (compression method ${buf.unsupported})`); return true; }
+    return false;
+}
+
+const newCoverage = () => ({ complete: true, unparsedFiles: [], unparsedFilesCount: 0, skippedFiles: [], skippedFilesCount: 0 });
+
 function addSignals(snap, file, list) {
     for (const s of list) snap.signals.push({ ...s, file });
 }
@@ -156,7 +176,7 @@ function collectExports(files, start, getScan, depth = 0, seen = new Set()) {
 
 /** Snapshot of an npm package version from its tarball files (root = package/ stripped). */
 export async function npmSnapshot(files) {
-    const snap = { ecosystem: 'npm', files: new Map(), signals: [], installScripts: {}, installFiles: new Set(), deps: {}, api: {}, meta: {}, notes: [] };
+    const snap = { ecosystem: 'npm', files: new Map(), signals: [], installScripts: {}, installFiles: new Set(), deps: {}, api: {}, meta: {}, notes: [], coverage: newCoverage() };
     let pkg = {};
     if (files.has('package.json')) {
         try { pkg = JSON.parse(files.get('package.json').toString('utf8')); } catch { snap.notes.push('package.json is not valid JSON'); }
@@ -188,7 +208,7 @@ export async function npmSnapshot(files) {
     for (const [p, buf] of files) {
         const h = sha(buf);
         snap.files.set(p, { size: buf.oversize || buf.length, hash: h });
-        if (buf.oversize) { snap.notes.push(`${p} skipped (${buf.oversize} bytes)`); continue; }
+        if (skipUnread(snap, p, buf)) continue;
         const bk = binaryKind(buf);
         if (bk) { snap.signals.push({ kind: 'binary-executable', detail: bk, file: p, line: 0 }); continue; }
         if (/\.(node|so|dll|dylib|wasm)$/i.test(p)) { snap.signals.push({ kind: 'native-code', detail: path.extname(p).toLowerCase(), file: p, line: 0 }); continue; }
@@ -199,6 +219,7 @@ export async function npmSnapshot(files) {
             const text = buf.toString('utf8');
             const r = scanJsCached(h, text, { wantExports: true });
             jsScans.set(p, r);
+            if (!r.parsed) gap(snap, 'unparsedFiles', p, r.error ? `not parsed (${String(r.error).slice(0, 80)}); pattern scan only` : /\.(c|m)?tsx?$/i.test(p) ? 'TypeScript source; pattern scan only' : text.length > JS_AST_LIMIT ? 'above the 6 MB parser limit; pattern scan only' : 'not parsed; pattern scan only');
             addSignals(snap, p, r.signals);
             scanSourceText(text, (k, d, line) => snap.signals.push({ kind: k, detail: d, file: p, line }));
             if (r.minified && buf.length > 50000 && !/\.min\.(c|m)?js$|[/.-](dist|umd|bundle|browser|esm|cjs)[/.-]/i.test(p)) snap.signals.push({ kind: 'minified-blob', detail: p, file: p, line: 0 });
@@ -246,14 +267,14 @@ function pyDepsFromSpecList(list, field = 'requires') {
 
 /** Snapshot of a PyPI distribution (wheel or sdist), root directory stripped. */
 export async function pypiSnapshot(files, kind) {
-    const snap = { ecosystem: 'pypi', kind, files: new Map(), signals: [], installScripts: {}, installFiles: new Set(), deps: {}, api: {}, meta: {}, notes: [] };
+    const snap = { ecosystem: 'pypi', kind, files: new Map(), signals: [], installScripts: {}, installFiles: new Set(), deps: {}, api: {}, meta: {}, notes: [], coverage: newCoverage() };
     const pyFiles = [];
     let metadataText = '';
     let pyproject = null;
     for (const [p, buf] of files) {
         const h = sha(buf);
         snap.files.set(p, { size: buf.oversize || buf.length, hash: h });
-        if (buf.oversize) { snap.notes.push(`${p} skipped (${buf.oversize} bytes)`); continue; }
+        if (skipUnread(snap, p, buf)) continue;
         if (/\.dist-info\/METADATA$/.test(p) || p === 'PKG-INFO') metadataText = metadataText || buf.toString('utf8');
         if (p === 'pyproject.toml') { try { pyproject = parseToml(buf.toString('utf8')); } catch { snap.notes.push('pyproject.toml did not parse'); } }
         const bk = binaryKind(buf);
@@ -329,6 +350,7 @@ export async function pypiSnapshot(files, kind) {
     for (const f of pyFiles) {
         const r = res[f.path];
         if (!r) continue;
+        if (!r.parsed) gap(snap, 'unparsedFiles', f.path, `Python source not parsed${r.error ? ` (${r.error})` : ''}; pattern scan only`);
         addSignals(snap, f.path, r.signals);
         scanSourceText(f.source, (k, d, line) => snap.signals.push({ kind: k, detail: d, file: f.path, line }));
         for (const s of r.strings || []) scanString(s, (k, d) => snap.signals.push({ kind: k, detail: d, file: f.path, line: 0 }));

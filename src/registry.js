@@ -1,5 +1,5 @@
-// Fetch published artifacts from the npm registry and PyPI. Downloads are verified
-// against the registry's digests and kept in memory.
+// Fetch published artifacts from the npm registry and PyPI. Downloads go only to the public
+// registry hosts, must match a registry digest, and are kept in memory.
 import crypto from 'node:crypto';
 import semver from 'semver';
 import { LIMITS } from './archive.js';
@@ -9,14 +9,40 @@ export const NPM_REGISTRY = (process.env.NPM_REGISTRY || 'https://registry.npmjs
 export const PYPI = (process.env.PYPI_URL || 'https://pypi.org').replace(/\/$/, '');
 
 export class NotFound extends Error {}
+export class DestinationError extends Error {}
+
+// Every request, and every redirect it follows, must go to one of these hosts over HTTPS on the
+// default port. Package metadata decides where tarballs live, so it is checked here too.
+const ALLOWED_HOSTS = new Set([
+    'registry.npmjs.org', 'registry.yarnpkg.com', 'pypi.org', 'files.pythonhosted.org',
+    ...[NPM_REGISTRY, PYPI].map((u) => new URL(u).hostname),
+]);
+const MAX_REDIRECTS = 3;
+
+export function checkDestination(raw) {
+    let u;
+    try { u = new URL(raw); } catch { throw new DestinationError(`not a valid URL: ${String(raw).slice(0, 200)}`); }
+    if (u.protocol !== 'https:' || u.port) throw new DestinationError(`refused non-HTTPS or custom-port URL: ${u.origin}`);
+    if (u.username || u.password) throw new DestinationError(`refused URL with credentials: ${u.hostname}`);
+    if (!ALLOWED_HOSTS.has(u.hostname)) throw new DestinationError(`refused download from ${u.hostname}: not a public registry host`);
+    return u;
+}
 
 async function get(url, { accept, maxBytes = LIMITS.maxCompressedBytes, tries = 3 } = {}) {
     let lastErr;
     for (let i = 0; i < tries; i++) {
         try {
-            const res = await fetch(url, { headers: { 'user-agent': UA, ...(accept ? { accept } : {}) }, signal: AbortSignal.timeout(60000), redirect: 'follow' });
+            let target = checkDestination(url);
+            let res;
+            for (let hop = 0; ; hop++) {
+                res = await fetch(target, { headers: { 'user-agent': UA, ...(accept ? { accept } : {}) }, signal: AbortSignal.timeout(60000), redirect: 'manual' });
+                if (![301, 302, 303, 307, 308].includes(res.status)) break;
+                const loc = res.headers.get('location');
+                try { await res.body?.cancel(); } catch { /* nothing to release */ }
+                if (!loc || hop >= MAX_REDIRECTS) throw new DestinationError(`too many or empty redirects from ${url}`);
+                target = checkDestination(new URL(loc, target).href);
+            }
             if (res.status === 404) throw new NotFound(`not found: ${url}`);
-            if (res.status >= 500 || res.status === 429) throw new Error(`HTTP ${res.status} for ${url}`);
             if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
             const len = Number(res.headers.get('content-length') || 0);
             if (len > maxBytes) throw new Error(`response larger than ${maxBytes} bytes: ${url}`);
@@ -30,7 +56,7 @@ async function get(url, { accept, maxBytes = LIMITS.maxCompressedBytes, tries = 
             return Buffer.concat(chunks);
         } catch (e) {
             lastErr = e;
-            if (e instanceof NotFound || /larger than/.test(e.message)) throw e;
+            if (e instanceof NotFound || e instanceof DestinationError || /larger than/.test(e.message)) throw e;
             await new Promise((r) => setTimeout(r, 500 * 2 ** i));
         }
     }
@@ -73,22 +99,46 @@ export async function npmResolve(name, from, to, { added = false } = {}) {
     return { from: fromV, to: toV, fromMeta: doc.versions[fromV], toMeta: doc.versions[toV] };
 }
 
-function verifyIntegrity(buf, dist, label) {
-    if (dist?.integrity) {
-        const [algo, b64] = dist.integrity.split(' ')[0].split('-');
-        const got = crypto.createHash(algo).update(buf).digest('base64');
-        if (got !== b64) throw new Error(`${label}: integrity mismatch`);
-        return;
+export class IntegrityError extends Error {}
+
+const SRI_BYTES = { sha512: 64, sha384: 48, sha256: 32 };
+
+/**
+ * Verify downloaded bytes against the registry's digest. A supported, well-formed digest is
+ * required; a missing, malformed or unsupported one is an error, never a pass. npm's legacy
+ * SHA-1 "shasum" is used only when no SRI integrity is published, and is labelled as such.
+ * Returns the digest used: 'sha512' | 'sha384' | 'sha256' | 'sha1 (legacy npm shasum)'.
+ */
+export function verifyNpmIntegrity(buf, dist, label) {
+    if (dist?.integrity !== undefined) {
+        const entries = String(dist.integrity).trim().split(/\s+/).map((e) => e.match(/^(sha512|sha384|sha256)-([A-Za-z0-9+/]+={0,2})(\?.*)?$/))
+            .filter((m) => m && Buffer.from(m[2], 'base64').length === SRI_BYTES[m[1]]);
+        if (!entries.length) throw new IntegrityError(`${label}: unsupported or malformed integrity value`);
+        entries.sort((x, y) => SRI_BYTES[y[1]] - SRI_BYTES[x[1]]);
+        const [, algo, b64] = entries[0];
+        if (crypto.createHash(algo).update(buf).digest('base64') !== b64) throw new IntegrityError(`${label}: integrity mismatch (${algo})`);
+        return algo;
     }
-    if (dist?.shasum && crypto.createHash('sha1').update(buf).digest('hex') !== dist.shasum) throw new Error(`${label}: shasum mismatch`);
+    if (typeof dist?.shasum === 'string' && /^[0-9a-f]{40}$/i.test(dist.shasum)) {
+        if (crypto.createHash('sha1').update(buf).digest('hex') !== dist.shasum.toLowerCase()) throw new IntegrityError(`${label}: shasum mismatch`);
+        return 'sha1 (legacy npm shasum)';
+    }
+    throw new IntegrityError(`${label}: the registry published no usable checksum`);
+}
+
+export function verifyPypiDigest(buf, f) {
+    const want = f?.digests?.sha256;
+    if (typeof want !== 'string' || !/^[0-9a-f]{64}$/i.test(want)) throw new IntegrityError(`${f?.filename}: PyPI published no well-formed sha256 digest`);
+    if (crypto.createHash('sha256').update(buf).digest('hex') !== want.toLowerCase()) throw new IntegrityError(`${f.filename}: sha256 mismatch`);
+    return 'sha256';
 }
 
 export async function npmTarball(name, version, meta) {
     const m = meta || (await npmPackument(name)).versions[version];
     if (!m?.dist?.tarball) throw new NotFound(`${name}@${version} has no tarball`);
     const buf = await get(m.dist.tarball);
-    verifyIntegrity(buf, m.dist, `${name}@${version}`);
-    return { buf, filename: m.dist.tarball.split('/').pop() };
+    const digest = verifyNpmIntegrity(buf, m.dist, `${name}@${version}`);
+    return { buf, filename: m.dist.tarball.split('/').pop(), digest };
 }
 
 export function npmOwners(doc) {
@@ -187,8 +237,8 @@ export function pypiPickArtifacts(fromFiles, toFiles) {
 export async function pypiFile(f) {
     if (f.size > LIMITS.maxCompressedBytes) throw new Error(`${f.filename} is ${Math.round(f.size / 1e6)} MB, above the ${LIMITS.maxCompressedBytes / 1e6} MB limit`);
     const buf = await get(f.url);
-    if (f.digests?.sha256 && crypto.createHash('sha256').update(buf).digest('hex') !== f.digests.sha256) throw new Error(`${f.filename}: sha256 mismatch`);
-    return { buf, filename: f.filename };
+    const digest = verifyPypiDigest(buf, f);
+    return { buf, filename: f.filename, digest };
 }
 
 export async function pypiDepInfo(name) {

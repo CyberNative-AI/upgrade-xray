@@ -145,6 +145,7 @@ export function diffSnapshots(old, neu, { addedPackage = false } = {}) {
         removedDependencies: removedDeps,
         files: { added: filesAdded, removed: filesRemoved, changed: filesChanged, total: neu.files.size },
         notes: [...new Set([...(old?.notes || []), ...neu.notes])].slice(0, 10),
+        coverage: neu.coverage || { complete: true },
         addedPackage,
     };
 }

@@ -6,7 +6,7 @@ import {
     NETWORK_MODULES_JS, SHELL_MODULES_JS, EVAL_MODULES_JS, WALLET_ADDRESS, scanString, stripNodePrefix,
 } from './signals.js';
 
-const AST_LIMIT = 6 * 1024 * 1024;
+export const AST_LIMIT = 6 * 1024 * 1024;
 const PARSE_OPTS = {
     ecmaVersion: 'latest',
     allowHashBang: true,

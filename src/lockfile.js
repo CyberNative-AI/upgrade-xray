@@ -5,10 +5,26 @@ import semver from 'semver';
 
 export class LockfileError extends Error {}
 
-// Only packages from the public registries are fetched; anything else (private registries,
-// git, URLs, local paths) is listed as "not from the registry" and its name is not sent anywhere.
-const PUBLIC_NPM = /^https:\/\/registry\.(npmjs\.org|yarnpkg\.com)\//;
-const PUBLIC_PYPI = /^https:\/\/(pypi\.org|files\.pythonhosted\.org)\//;
+// Only packages whose recorded origin is one of the public registries are looked up.
+// Private registries, git, URLs, local paths and entries with no recorded origin are listed,
+// and their names are not sent anywhere. Entries with no recorded origin can be looked up only
+// when the caller confirms that they come from the public registry (assumePublic).
+const PUBLIC_HOSTS = {
+    npm: new Set(['registry.npmjs.org', 'registry.yarnpkg.com']),
+    pypi: new Set(['pypi.org', 'files.pythonhosted.org']),
+};
+
+/** Classify a recorded origin: 'public' | 'private' | 'git' | 'local' | 'url' | 'unknown'. */
+export function classifyOrigin(raw, ecosystem) {
+    if (raw === undefined || raw === null || raw === '') return 'unknown';
+    const s = String(raw).trim();
+    if (/^(git\+|git:|github:|gitlab:|bitbucket:|gist:)/i.test(s) || /\.git(#|$)/i.test(s)) return 'git';
+    if (/^(file:|link:|workspace:|\.{0,2}\/|~\/)/i.test(s)) return 'local';
+    let u;
+    try { u = new URL(s); } catch { return 'url'; }
+    if (u.protocol !== 'https:' || u.username || u.password || u.port) return 'private';
+    return PUBLIC_HOSTS[ecosystem].has(u.hostname.toLowerCase()) ? 'public' : 'private';
+}
 
 export function detectType(text, hint = '') {
     const h = hint.toLowerCase();
@@ -26,6 +42,13 @@ export function detectType(text, hint = '') {
     throw new LockfileError('could not recognise the lockfile format (supported: package-lock.json, npm-shrinkwrap.json, pnpm-lock.yaml, uv.lock, poetry.lock)');
 }
 
+/** Strip credentials and query strings (tokens, signed-URL parameters) from a recorded source before it is reported. */
+export function redactSource(raw) {
+    if (raw === undefined || raw === null) return null;
+    const s = String(raw).slice(0, 500);
+    return s.replace(/^([a-z][\w+.-]*:\/\/)[^/@\s]*@/i, '$1').replace(/\?[^#\s]*/, '');
+}
+
 const ecosystemOf = (type) => (type === 'npm' || type === 'pnpm' ? 'npm' : 'pypi');
 
 function addVer(map, name, version, extra) {
@@ -38,19 +61,20 @@ function parseNpm(text) {
     let doc;
     try { doc = JSON.parse(text); } catch (e) { throw new LockfileError(`package-lock.json is not valid JSON: ${e.message}`); }
     const map = new Map();
-    if (doc.packages) {
+    const add = (name, v) => {
+        if (typeof v?.version !== 'string') return;
+        // npm v1 records git/URL/local dependencies in "version"; v2/v3 in "resolved".
+        const recorded = v.resolved || (/^[\w.+-]+:|^[./~]/.test(v.version) ? v.version : undefined);
+        addVer(map, name, v.version, { origin: classifyOrigin(recorded, 'npm'), source: recorded || null, dev: Boolean(v.dev) });
+    };
+    if (doc.packages && typeof doc.packages === 'object') {
         for (const [p, v] of Object.entries(doc.packages)) {
-            if (!p || v.link || !p.includes('node_modules/')) continue;
-            const name = v.name || p.slice(p.lastIndexOf('node_modules/') + 'node_modules/'.length);
-            const registry = !v.resolved || PUBLIC_NPM.test(v.resolved);
-            addVer(map, name, v.version, { resolved: v.resolved, registry, dev: Boolean(v.dev) });
+            if (!p || v?.link || !p.includes('node_modules/')) continue;
+            add(v.name || p.slice(p.lastIndexOf('node_modules/') + 'node_modules/'.length), v);
         }
-    } else if (doc.dependencies) {
+    } else if (doc.dependencies && typeof doc.dependencies === 'object') {
         const walk = (deps) => {
-            for (const [n, v] of Object.entries(deps || {})) {
-                addVer(map, n, v.version, { resolved: v.resolved, registry: !v.resolved || /registry/.test(v.resolved), dev: Boolean(v.dev) });
-                walk(v.dependencies);
-            }
+            for (const [n, v] of Object.entries(deps || {})) { add(n, v); walk(v?.dependencies); }
         };
         walk(doc.dependencies);
     }
@@ -74,10 +98,13 @@ function parsePnpm(text) {
     const map = new Map();
     for (const [key, v] of Object.entries({ ...(doc?.packages || {}) })) {
         const [name, version] = parsePnpmKey(key);
-        const tarball = v?.resolution?.tarball;
-        const registry = !tarball ? !v?.resolution?.type : PUBLIC_NPM.test(tarball);
+        const res = v?.resolution || {};
+        // pnpm omits the tarball for packages from the configured default registry, which may be
+        // private, so a missing tarball is an unknown origin.
+        const recorded = res.tarball || res.repo || res.directory || (res.type === 'git' ? 'git:' : undefined);
+        const origin = res.type === 'directory' ? 'local' : res.type === 'git' || res.repo ? 'git' : classifyOrigin(recorded, 'npm');
         const realVersion = v?.version && !/^\d/.test(version) ? v.version : version;
-        if (name && /^\d/.test(realVersion || '')) addVer(map, v?.name || name, realVersion, { registry, dev: Boolean(v?.dev) });
+        if (name && /^\d/.test(realVersion || '')) addVer(map, v?.name || name, realVersion, { origin, source: recorded || null, dev: Boolean(v?.dev) });
     }
     return map;
 }
@@ -93,8 +120,14 @@ function parseUv(text) {
     const map = new Map();
     for (const p of doc.package || []) {
         const src = p.source || {};
-        if (src.editable || src.virtual || src.path || src.directory) continue; // the project itself / local paths
-        addVer(map, normPy(p.name), p.version, { registry: Boolean(src.registry) && PUBLIC_PYPI.test(src.registry), source: src.git || src.url || src.registry || null });
+        if (src.editable || src.virtual) continue; // the project itself
+        let origin; let source;
+        if (src.registry) { origin = classifyOrigin(src.registry, 'pypi'); source = src.registry; }
+        else if (src.git) { origin = 'git'; source = src.git; }
+        else if (src.path || src.directory) { origin = 'local'; source = src.path || src.directory; }
+        else if (src.url) { origin = 'url'; source = src.url; }
+        else { origin = 'unknown'; source = null; }
+        addVer(map, normPy(p.name), p.version, { origin, source });
     }
     return map;
 }
@@ -104,8 +137,13 @@ function parsePoetry(text) {
     const map = new Map();
     for (const p of doc.package || []) {
         const src = p.source || {};
-        if (src.type === 'directory' || src.type === 'file') continue;
-        addVer(map, normPy(p.name), p.version, { registry: !src.type || (src.type === 'legacy' && PUBLIC_PYPI.test(src.url || '')), source: src.url || src.type || null });
+        let origin; let source = src.url || null;
+        if (!p.source) origin = 'unknown'; // Poetry's default source; not recorded in the lockfile
+        else if (src.type === 'legacy') origin = classifyOrigin(src.url, 'pypi');
+        else if (src.type === 'git') origin = 'git';
+        else if (src.type === 'directory' || src.type === 'file') origin = 'local';
+        else { origin = 'url'; source = src.url || src.type || null; }
+        addVer(map, normPy(p.name), p.version, { origin, source });
     }
     return map;
 }
@@ -129,20 +167,35 @@ function cmpVersions(ecosystem, a, b) {
     return 0;
 }
 
+const ORIGIN_LABEL = { private: 'another registry or host', git: 'git', local: 'a local path', url: 'a URL', unknown: 'no recorded origin' };
+
 /**
- * Compare two parsed lockfiles. Returns { updated: [{name, from, to}], added: [{name, to}], removed: [{name, from}], nonRegistry: [...] }
+ * Compare two parsed lockfiles. Returns { updated: [{name, from, to}], added: [{name, to}], removed: [{name, from}],
+ * nonRegistry: [{name, to, origin, source}], originChanges: [{name, to, fromOrigin}] }.
+ * Only "updated" and "added" entries may be looked up on a public registry. An entry with no recorded
+ * origin is looked up only with assumePublic; everything else that is not public goes to nonRegistry.
  */
-export function diffLockfiles(before, after) {
+export function diffLockfiles(before, after, { assumePublic = false } = {}) {
     if (before.ecosystem !== after.ecosystem) throw new LockfileError(`lockfiles are for different ecosystems (${before.type} vs ${after.type})`);
     const eco = after.ecosystem;
-    const updated = []; const added = []; const removed = []; const nonRegistry = [];
+    const updated = []; const added = []; const removed = []; const nonRegistry = []; const originChanges = [];
+    const lookable = (meta) => meta.origin === 'public' || (assumePublic && meta.origin === 'unknown');
     for (const [name, vers] of after.packages) {
         const old = before.packages.get(name);
         for (const [v, meta] of vers) {
-            if (old?.has(v)) continue;
-            if (meta.registry === false) { nonRegistry.push({ name, to: v, source: meta.source || meta.resolved || 'non-registry' }); continue; }
-            if (old && old.size) {
-                const olds = [...old.keys()].sort((a, b) => cmpVersions(eco, a, b));
+            if (old?.has(v) && old.get(v).origin === meta.origin) continue;
+            if (!lookable(meta)) {
+                nonRegistry.push({ name, to: v, origin: meta.origin, source: redactSource(meta.source) || ORIGIN_LABEL[meta.origin] || meta.origin });
+                continue;
+            }
+            // Earlier versions to compare with must themselves be public; a name that moved from
+            // another origin to the public registry is scanned as a new package and listed.
+            const oldPublic = old ? [...old.entries()].filter(([, m]) => lookable(m)).map(([o]) => o) : [];
+            const oldOther = old ? [...old.values()].filter((m) => !lookable(m)) : [];
+            if (oldOther.length) originChanges.push({ name, to: v, fromOrigin: oldOther[0].origin });
+            if (oldPublic.length) {
+                const olds = oldPublic.filter((o) => o !== v).sort((a, b) => cmpVersions(eco, a, b));
+                if (!olds.length) continue;
                 const lower = olds.filter((o) => cmpVersions(eco, o, v) < 0);
                 const from = lower.length ? lower[lower.length - 1] : olds[0];
                 updated.push({ name, from, to: v, dev: Boolean(meta.dev) });
@@ -154,5 +207,5 @@ export function diffLockfiles(before, after) {
         for (const v of vers.keys()) if (!now?.has(v) && !(now && now.size)) removed.push({ name, from: v });
     }
     const byName = (a, b) => a.name.localeCompare(b.name);
-    return { ecosystem: eco, type: after.type, updated: updated.sort(byName), added: added.sort(byName), removed: removed.sort(byName), nonRegistry };
+    return { ecosystem: eco, type: after.type, updated: updated.sort(byName), added: added.sort(byName), removed: removed.sort(byName), nonRegistry: nonRegistry.sort(byName), originChanges: originChanges.sort(byName) };
 }

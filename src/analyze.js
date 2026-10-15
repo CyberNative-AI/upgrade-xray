@@ -34,10 +34,17 @@ export async function enrichNewDeps(ecosystem, result, referenceTime, owners = [
             const ageDays = (referenceTime - new Date(info.created).getTime()) / 86400000;
             f.dependencyInfo.ageDaysAtRelease = Math.round(ageDays * 10) / 10;
             if (ageDays < YOUNG_DAYS) {
-                const shared = (info.owners || []).some((o) => owners.includes(o));
-                f.dependencyInfo.sharesOwner = shared;
+                // Owner identities are what the registry lists: npm maintainers and repository URLs,
+                // or PyPI's self-declared author emails and project URLs. None of them is verified.
+                const theirs = info.owners || [];
+                const shared = theirs.some((o) => owners.includes(o));
+                const known = theirs.length > 0 && owners.length > 0;
+                f.dependencyInfo.sharesOwner = shared ? true : known ? false : null;
                 f.severity = shared ? 'medium' : 'high';
-                f.detail = `${f.detail}; first published ${Math.max(0, Math.round(ageDays))} day(s) before this release${shared ? ' by the same maintainers or repository owner' : ' by different maintainers'}`;
+                const basis = ecosystem === 'npm' ? 'npm maintainer or repository' : 'self-declared author email or project URL';
+                const who = shared ? ` and shares a listed ${basis} with this package`
+                    : known ? `; no shared ${basis} was identified` : `; owner unknown (no ${basis} listed to compare)`;
+                f.detail = `${f.detail}; first published ${Math.max(0, Math.round(ageDays))} day(s) before this release${who}`;
             }
         }
     }));
@@ -68,7 +75,7 @@ export async function analyzeNpm({ name, from, to, added = false }, { enrich = t
         await enrichNewDeps('npm', result, t || Date.now(), await packageOwners('npm', name));
         rescore(result);
     }
-    return { ecosystem: 'npm', name, fromVersion: r.from, toVersion: r.to, ...result };
+    return { ecosystem: 'npm', name, fromVersion: r.from, toVersion: r.to, artifacts: [{ kind: 'tarball', files: [a?.filename ?? null, b.filename], verifiedWith: [a?.digest ?? null, b.digest] }], ...result };
 }
 
 /** PyPI: {name, from?, to?} → result (wheel and sdist compared separately, merged) */
@@ -83,7 +90,7 @@ export async function analyzePypi({ name, from, to, added = false }, { enrich = 
             const [a, b] = await Promise.all([p.from ? pypiFile(p.from) : null, pypiFile(p.to)]);
             const oldSnap = a ? await snapshotFromArchive('pypi', a.buf, a.filename, p.kind) : null;
             const newSnap = await snapshotFromArchive('pypi', b.buf, b.filename, p.kind);
-            parts.push({ kind: p.kind, files: [p.from?.filename, p.to.filename], result: diffSnapshots(oldSnap, newSnap, { addedPackage: added }) });
+            parts.push({ kind: p.kind, files: [p.from?.filename ?? null, p.to.filename], verifiedWith: [a?.digest ?? null, b.digest], result: diffSnapshots(oldSnap, newSnap, { addedPackage: added }) });
         } catch (e) {
             errors.push(`${p.kind}: ${e.message}`);
         }
@@ -91,11 +98,30 @@ export async function analyzePypi({ name, from, to, added = false }, { enrich = 
     if (!parts.length) throw new Error(errors.join('; '));
     const merged = mergeArtifactResults(parts);
     merged.notes.push(...errors);
+    if (errors.length) {
+        merged.coverage.complete = false;
+        merged.coverage.failedArtifacts = errors;
+    }
     if (enrich) {
         await enrichNewDeps('pypi', merged, r.toTime || Date.now(), await packageOwners('pypi', name));
         rescore(merged);
     }
-    return { ecosystem: 'pypi', name, fromVersion: r.from, toVersion: r.to, artifacts: parts.map((p) => ({ kind: p.kind, files: p.files })), ...merged };
+    return { ecosystem: 'pypi', name, fromVersion: r.from, toVersion: r.to, artifacts: parts.map((p) => ({ kind: p.kind, files: p.files, verifiedWith: p.verifiedWith })), ...merged };
+}
+
+function mergeCoverage(list) {
+    const out = { complete: true, unparsedFiles: [], unparsedFilesCount: 0, skippedFiles: [], skippedFilesCount: 0 };
+    for (const c of list) {
+        if (!c) continue;
+        out.complete = out.complete && c.complete !== false;
+        for (const k of ['unparsedFiles', 'skippedFiles']) {
+            out[`${k}Count`] += c[`${k}Count`] || 0;
+            out[k].push(...(c[k] || []));
+        }
+    }
+    out.unparsedFiles = out.unparsedFiles.slice(0, 20);
+    out.skippedFiles = out.skippedFiles.slice(0, 20);
+    return out;
 }
 
 /** Merge wheel and sdist diffs: security findings from both (deduplicated), API/deps from the wheel when present. */
@@ -112,7 +138,7 @@ export function mergeArtifactResults(parts) {
             findings.push({ ...f, artifact: p.kind });
         }
     }
-    const out = { ...primary.result, findings, notes: [...new Set(parts.flatMap((p) => p.result.notes))] };
+    const out = { ...primary.result, findings, notes: [...new Set(parts.flatMap((p) => p.result.notes))], coverage: mergeCoverage(parts.map((p) => p.result.coverage)) };
     out.files = primary.result.files;
     rescore(out);
     out.breaking = findings.some((f) => f.category === 'breaking' && f.severity !== 'info');

@@ -5,7 +5,11 @@
    "code identical to clean version": 2,
    "not-an-artifact (git checkout)": 1
   },
-  "clean_version_unavailable": 7,
+  "excluded_errors": {
+   "registry_not_found": 6,
+   "download_too_large": 1,
+   "other": 0
+  },
   "updates": {
    "n": 361,
    "review": 359,
@@ -27,7 +31,8 @@
   },
   "updates_first_version_per_package": {
    "n": 242,
-   "review": 241
+   "review": 241,
+   "ordering": "semver (npm) / PEP 440 (PyPI)"
   },
   "new_packages": {
    "n": 19,
@@ -130,7 +135,11 @@
    "no code in sample": 2,
    "not-an-artifact (git checkout)": 12
   },
-  "clean_version_unavailable": 28,
+  "excluded_errors": {
+   "registry_not_found": 27,
+   "download_too_large": 1,
+   "other": 0
+  },
   "updates": {
    "n": 998,
    "review": 988,
@@ -152,7 +161,8 @@
   },
   "updates_first_version_per_package": {
    "n": 703,
-   "review": 698
+   "review": 698,
+   "ordering": "semver (npm) / PEP 440 (PyPI)"
   },
   "new_packages": {
    "n": 47,

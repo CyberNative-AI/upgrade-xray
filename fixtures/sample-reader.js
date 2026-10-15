@@ -1,7 +1,7 @@
 // Reads password-protected (ZipCrypto) sample archives from the Datadog malicious
 // packages dataset entirely in memory. Samples are never extracted to disk or run.
 import zlib from 'node:zlib';
-import { readArchive, stripCommonRoot } from '../src/archive.js';
+import { readArchive, stripCommonRoot, ArchiveError, LIMITS } from '../src/archive.js';
 
 const CRC_TABLE = (() => {
     const t = new Uint32Array(256);
@@ -33,29 +33,51 @@ function zipCryptoDecrypt(data, password) {
     return out.subarray(12);
 }
 
-/** Map<path, Buffer> of an encrypted zip. */
-export function readEncryptedZip(zip, password = 'infected') {
+function bounded(zip, at, n) {
+    if (at < 0 || at + n > zip.length) throw new ArchiveError('sample zip: offset out of bounds');
+    return at;
+}
+
+/**
+ * Map<path, Buffer> of an encrypted zip, held to the same file-count, per-file and total
+ * output limits as the Actor's own archive reader.
+ */
+export function readEncryptedZip(zip, password = 'infected', limits = LIMITS) {
     const files = new Map();
     let eocd = -1;
     for (let i = zip.length - 22; i >= Math.max(0, zip.length - 65557); i--) if (zip.readUInt32LE(i) === 0x06054b50) { eocd = i; break; }
     if (eocd < 0) throw new Error('not a zip');
     const count = zip.readUInt16LE(eocd + 10);
+    if (count > limits.maxFiles) throw new ArchiveError('sample zip: too many files');
     let p = zip.readUInt32LE(eocd + 16);
+    let total = 0;
     for (let n = 0; n < count; n++) {
+        bounded(zip, p, 46);
+        if (zip.readUInt32LE(p) !== 0x02014b50) throw new ArchiveError('sample zip: bad central directory entry');
         const flags = zip.readUInt16LE(p + 8);
         const method = zip.readUInt16LE(p + 10);
         const csize = zip.readUInt32LE(p + 20);
+        const usize = zip.readUInt32LE(p + 24);
         const nlen = zip.readUInt16LE(p + 28);
         const xlen = zip.readUInt16LE(p + 30);
         const clen = zip.readUInt16LE(p + 32);
         const lho = zip.readUInt32LE(p + 42);
+        bounded(zip, p + 46, nlen + xlen + clen);
         const name = zip.toString('utf8', p + 46, p + 46 + nlen);
         p += 46 + nlen + xlen + clen;
         if (name.endsWith('/')) continue;
+        if (usize > limits.maxFileBytes || usize > limits.maxUnpackedBytes - total) throw new ArchiveError(`sample zip: ${name} exceeds the size limits`);
+        bounded(zip, lho, 30);
         const start = lho + 30 + zip.readUInt16LE(lho + 26) + zip.readUInt16LE(lho + 28);
+        bounded(zip, start, csize);
         let raw = zip.subarray(start, start + csize);
         if (flags & 1) raw = zipCryptoDecrypt(raw, password);
-        const data = method === 8 ? zlib.inflateRawSync(raw) : Buffer.from(raw);
+        let data;
+        if (method === 8) data = zlib.inflateRawSync(raw, { maxOutputLength: usize + 1 });
+        else if (method === 0) data = Buffer.from(raw);
+        else throw new ArchiveError(`sample zip: unsupported method ${method}`);
+        if (data.length !== usize) throw new ArchiveError(`sample zip: ${name} size differs from its header`);
+        total += data.length;
         files.set(name, data);
     }
     return files;
