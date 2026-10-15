@@ -1,7 +1,7 @@
 import { Actor, log } from 'apify';
 import { analyzePackage } from './analyze.js';
 import { parseLockfile, diffLockfiles, LockfileError } from './lockfile.js';
-import { packageMarkdown, packagesReport, lockfileReport, summaryLine } from './report.js';
+import { packageMarkdown, packagesReport, lockfileReport, summaryLine, packageVerdict } from './report.js';
 
 const EVENT_PACKAGE = 'package-diff';
 const EVENT_LOCKFILE = 'lockfile-report';
@@ -41,7 +41,7 @@ function toItem(r, extra = {}) {
     const md = packageMarkdown(r, { heading: '###' });
     return plain({
         ecosystem: r.ecosystem, name: r.name, fromVersion: r.fromVersion ?? null, toVersion: r.toVersion ?? null,
-        verdict: r.error ? 'error' : r.verdict, coverage: r.error ? { complete: false } : (r.coverage || { complete: true }), breaking: r.breaking ?? false, counts: r.counts || {},
+        verdict: packageVerdict(r), coverage: r.error ? { complete: false } : (r.coverage || { complete: true }), breaking: r.breaking ?? false, counts: r.counts || {},
         summary: r.error ? `Not analysed: ${r.error}` : md.split('\n').filter((l) => l.startsWith('- **')).slice(0, 5).map((l) => l.slice(2)).join('\n') || 'Nothing new found.',
         findings: r.findings || [], newDependencies: r.newDependencies || [], removedDependencies: r.removedDependencies || [],
         files: r.files || null, artifacts: r.artifacts || null, notes: r.notes || [], addedPackage: Boolean(r.addedPackage), error: r.error || null,
@@ -63,15 +63,15 @@ export function lockfileText(input, key) {
 
 /**
  * Overall verdict for a run. "review"/"notice" when an analysed package needs it; otherwise
- * "error" when nothing could be analysed, "incomplete" when some changes were not analysed,
- * and "clean" only when every change in scope was analysed and nothing new was found.
+ * "error" when nothing could be analysed, "incomplete" when some changes, files or artifacts
+ * were not fully analysed, and "clean" only when everything in scope was read and nothing new
+ * was found. counts come from summaryLine (package verdicts); coverage from coverageOf.
  */
-export function overallVerdict(counts, { excluded = 0 } = {}) {
+export function overallVerdict(counts, coverage) {
     if (counts.review) return 'review';
     if (counts.notice) return 'notice';
-    const analysed = counts.clean;
-    if (!analysed && counts.error) return 'error';
-    if (counts.error || excluded) return 'incomplete';
+    if (!counts.clean && !counts.incomplete && counts.error) return 'error';
+    if (counts.error || !coverage.complete) return 'incomplete';
     return 'clean';
 }
 
@@ -126,14 +126,14 @@ export async function runInput(input, io) {
         });
         const counts = summaryLine(results);
         const coverage = coverageOf(results, { notLookedUp: diff.nonRegistry.length, overLimit: skipped.length, addedNotScanned: includeAdded ? 0 : diff.added.length });
-        const verdict = overallVerdict(counts, { excluded: coverage.notLookedUp + coverage.overLimit + coverage.addedNotScanned });
+        const verdict = overallVerdict(counts, coverage);
         const md = lockfileReport(results, diff, { skipped, verdict, coverage });
         await io.setValue('REPORT', md, { contentType: 'text/markdown; charset=utf-8' });
         const output = plain({ mode: 'lockfile', lockfileType: diff.type, ecosystem: diff.ecosystem, verdict, complete: verdict !== 'error' && coverage.complete, counts, coverage, updated: diff.updated.length, added: diff.added.length, removed: diff.removed.length, nonRegistry: diff.nonRegistry, originChanges: diff.originChanges, skipped, markdown: md });
         await io.setValue('OUTPUT', output);
         // One report charge, only when at least one package was actually analysed.
         if (coverage.analysed > 0) await io.charge({ eventName: EVENT_LOCKFILE, count: 1 });
-        log.info(`Report: ${verdict}; ${counts.review} review, ${counts.notice} notice, ${counts.clean} clean, ${counts.error} errors`);
+        log.info(`Report: ${verdict}; ${counts.review} review, ${counts.notice} notice, ${counts.clean} clean, ${counts.incomplete} partly analysed, ${counts.error} errors`);
         return output;
     }
 
@@ -166,7 +166,7 @@ export async function runInput(input, io) {
     const all = results.concat(invalid);
     const counts = summaryLine(all);
     const coverage = coverageOf(all, { overLimit });
-    const verdict = overallVerdict(counts, { excluded: overLimit });
+    const verdict = overallVerdict(counts, coverage);
     const md = packagesReport(all, { verdict, coverage });
     await io.setValue('REPORT', md, { contentType: 'text/markdown; charset=utf-8' });
     const output = plain({ mode: 'package', verdict, complete: verdict !== 'error' && coverage.complete, counts, coverage, markdown: md });
@@ -178,8 +178,8 @@ export async function runInput(input, io) {
 export function coverageOf(results, { notLookedUp = 0, overLimit = 0, addedNotScanned = 0 } = {}) {
     const failed = results.filter((r) => r.error).length;
     const analysed = results.length - failed;
-    const partialFiles = results.filter((r) => !r.error && r.coverage && !r.coverage.complete).length;
-    return { analysed, failed, notLookedUp, overLimit, addedNotScanned, packagesWithUnparsedFiles: partialFiles, complete: !failed && !notLookedUp && !overLimit && !addedNotScanned };
+    const partial = results.filter((r) => !r.error && r.coverage?.complete === false).length;
+    return { analysed, failed, notLookedUp, overLimit, addedNotScanned, packagesWithUnparsedFiles: partial, complete: !failed && !notLookedUp && !overLimit && !addedNotScanned && !partial };
 }
 
 async function run() {

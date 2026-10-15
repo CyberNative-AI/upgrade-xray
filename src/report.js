@@ -4,7 +4,7 @@ const VERDICT = {
     notice: '🟡 WORTH A LOOK',
     clean: '🟢 NOTHING NEW FOUND',
     error: '⚪ NOT ANALYSED',
-    incomplete: '⚪ INCOMPLETE',
+    incomplete: '⚪ PARTLY ANALYSED',
 };
 const SEV = { high: 'High', medium: 'Medium', low: 'Low', info: 'Info' };
 
@@ -12,6 +12,17 @@ const code = (s) => `\`${String(s).replace(/`/g, "'").replace(/\s+/g, ' ').slice
 const loc = (l) => (l.line ? `${l.file}:${l.line}` : l.file);
 
 export const DISCLAIMER = 'Static analysis of the published files: nothing was installed or executed. A finding is a change worth reading, not proof of malware, and an empty report does not prove a package is safe.';
+
+/**
+ * Verdict shown for one package. The detector's "clean" becomes "incomplete" when some of the
+ * package's files or artifacts were not fully analysed, so "nothing new found" is only said of
+ * a package that was read in full.
+ */
+export function packageVerdict(r) {
+    if (r.error) return 'error';
+    if (r.verdict === 'clean' && r.coverage?.complete === false) return 'incomplete';
+    return r.verdict;
+}
 
 export function packageTitle(r) {
     const eco = r.ecosystem === 'pypi' ? 'PyPI' : 'npm';
@@ -25,7 +36,7 @@ export function packageMarkdown(r, { heading = '###', maxFindings = 25 } = {}) {
         lines.push(`${heading} ${VERDICT.error} — ${r.name}${r.toVersion ? ` ${r.toVersion}` : ''} (${r.ecosystem})`, '', `Could not analyse: ${r.error}`, '');
         return lines.join('\n');
     }
-    lines.push(`${heading} ${VERDICT[r.verdict]} — ${packageTitle(r)}`, '');
+    lines.push(`${heading} ${VERDICT[packageVerdict(r)]} — ${packageTitle(r)}`, '');
     const sec = r.findings.filter((f) => f.category !== 'breaking' && f.severity !== 'info');
     const brk = r.findings.filter((f) => f.category === 'breaking');
     const info = r.findings.filter((f) => f.category !== 'breaking' && f.severity === 'info');
@@ -70,7 +81,7 @@ const OVERALL = {
     review: '🔴 Review before merge',
     notice: '🟡 Worth a look',
     clean: '🟢 Nothing new found in any change',
-    incomplete: '⚪ Incomplete — some changes were not analysed',
+    incomplete: '⚪ Incomplete — nothing needing review was found, but some changes or files were not fully analysed',
     error: '⚪ Not analysed — no change could be analysed',
 };
 
@@ -83,41 +94,44 @@ function overallLines(verdict, coverage) {
         if (coverage.notLookedUp) gaps.push(`${coverage.notLookedUp} not looked up (not proven to come from the public registry)`);
         if (coverage.overLimit) gaps.push(`${coverage.overLimit} above the package limit`);
         if (coverage.addedNotScanned) gaps.push(`${coverage.addedNotScanned} new package(s) not scanned`);
+        if (coverage.packagesWithUnparsedFiles) gaps.push(`${coverage.packagesWithUnparsedFiles} analysed package(s) only partly analysed (files pattern-scanned or not read, or an artifact not compared; listed with each package below)`);
         out.push(`Not covered: ${gaps.join(', ')}.`);
     }
-    if (coverage?.packagesWithUnparsedFiles) out.push(`${coverage.packagesWithUnparsedFiles} analysed package(s) contain files that were only pattern-scanned or not read; see each package.`);
     out.push('');
     return out;
 }
 
 export function summaryLine(results) {
-    const c = { review: 0, notice: 0, clean: 0, error: 0 };
-    for (const r of results) c[r.error ? 'error' : r.verdict]++;
+    const c = { review: 0, notice: 0, clean: 0, incomplete: 0, error: 0 };
+    for (const r of results) c[packageVerdict(r)]++;
     return c;
 }
 
+const countsLine = (c) => `**${c.review} to review · ${c.notice} worth a look · ${c.clean} nothing new${c.incomplete ? ` · ${c.incomplete} partly analysed` : ''}${c.error ? ` · ${c.error} not analysed` : ''}**`;
+
 export function packagesReport(results, { title = 'Upgrade X-Ray', verdict, coverage } = {}) {
     const c = summaryLine(results);
-    const out = [`## ${title}`, '', ...overallLines(verdict, coverage), `**${c.review} to review · ${c.notice} worth a look · ${c.clean} nothing new${c.error ? ` · ${c.error} not analysed` : ''}**`, ''];
+    const out = [`## ${title}`, '', ...overallLines(verdict, coverage), countsLine(c), ''];
     for (const r of sortResults(results)) out.push(packageMarkdown(r));
     out.push(`<sub>${DISCLAIMER}</sub>`, '');
     return out.join('\n');
 }
 
-const RANK = { review: 0, notice: 1, error: 2, clean: 3 };
+const RANK = { review: 0, notice: 1, error: 2, incomplete: 3, clean: 4 };
 export function sortResults(results) {
-    return [...results].sort((a, b) => RANK[a.error ? 'error' : a.verdict] - RANK[b.error ? 'error' : b.verdict] || a.name.localeCompare(b.name));
+    return [...results].sort((a, b) => RANK[packageVerdict(a)] - RANK[packageVerdict(b)] || a.name.localeCompare(b.name));
 }
 
 export function lockfileReport(results, diff, { skipped = [], title = 'Upgrade X-Ray — lockfile report', verdict, coverage } = {}) {
     const c = summaryLine(results);
     const out = [`## ${title}`, '', ...overallLines(verdict, coverage),
         `${diff.type} lockfile: **${diff.updated.length} updated, ${diff.added.length} added, ${diff.removed.length} removed** package versions.`, '',
-        `**${c.review} to review · ${c.notice} worth a look · ${c.clean} nothing new${c.error ? ` · ${c.error} not analysed` : ''}**`, ''];
+        countsLine(c), ''];
     const sorted = sortResults(results);
-    const loud = sorted.filter((r) => r.error || r.verdict !== 'clean');
+    // Only packages read in full go into the compact list; partly analysed ones keep their coverage detail.
+    const loud = sorted.filter((r) => packageVerdict(r) !== 'clean');
     for (const r of loud) out.push(packageMarkdown(r));
-    const quiet = sorted.filter((r) => !r.error && r.verdict === 'clean');
+    const quiet = sorted.filter((r) => packageVerdict(r) === 'clean');
     if (quiet.length) {
         out.push('<details><summary>Nothing new found in ' + quiet.length + ' package(s)</summary>', '');
         for (const r of quiet) {

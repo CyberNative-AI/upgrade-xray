@@ -10,7 +10,7 @@ For each update, Upgrade X-Ray downloads the old and new published artifacts (np
 - **Removed functions** — exports removed from each entry point or module (JS, TypeScript declarations, Python public names), removed import paths and commands, a switch to ES modules, and raised engine / Python requirements.
 - **New dependencies** — with their age and listed owners: a dependency first published days before the release that shares no listed maintainer or repository with the package (or lists none) is flagged high; one that does not exist on the registry, or comes from git or a URL, is flagged high. Owners are compared as the registry lists them (npm maintainers and repository URLs, PyPI's self-declared author emails and project URLs); they are not verified identities.
 
-Each package gets a verdict: **🔴 review before merge**, **🟡 worth a look**, or **🟢 nothing new found**. When some files of a package could only be pattern-scanned or not read at all, the package says so and lists them.
+Each package gets a verdict: **🔴 review before merge**, **🟡 worth a look**, **🟢 nothing new found**, or **⚪ partly analysed** when nothing was found but some of its files could only be pattern-scanned or not read, or one of its artifacts could not be compared. The package lists those files and the reason.
 
 ## Two ways to run it
 
@@ -37,7 +37,7 @@ Only entries whose recorded source is the public registry (`https://registry.npm
 - **Dataset** — one item per package: verdict, findings with file and line, new and removed dependencies, API changes, and a ready-to-post markdown section.
 - **Key-value store** — `REPORT` (the full markdown verdict, e.g. for a pull-request comment) and `OUTPUT` (summary JSON).
 
-`OUTPUT.verdict` is `review`, `notice` or `clean` when every change in scope was analysed. It is `incomplete` when some changes were not analysed (failed, not looked up, or above the package limit) and nothing needing review was found in the rest, and `error` when no change could be analysed. `OUTPUT.complete` and `OUTPUT.coverage` give the counts; check them before treating a run as clean.
+`OUTPUT.verdict` is `review` or `notice` when an analysed package needs it. Otherwise it is `clean` only when every change in scope was analysed in full; `incomplete` when nothing needing review was found but some changes were not analysed (failed, not looked up, or above the package limit) or some packages were only partly analysed; and `error` when no change could be analysed. Each dataset item's `verdict` follows the same rule (`incomplete` for a partly analysed package). `OUTPUT.complete` and `OUTPUT.coverage` give the counts; check them before treating a run as clean.
 
 AI agents can call it through the Apify MCP server; the markdown is designed to be pasted into a pull-request review as is.
 
