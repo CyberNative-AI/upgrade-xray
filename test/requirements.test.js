@@ -38,6 +38,7 @@ test('requirements: no index option = no recorded origin; nothing leaves the run
     assert.deepEqual(names, []);
     assert.deepEqual(io.kv.OUTPUT.nonRegistry.map((n) => [n.name, n.origin]).sort(), [['django', 'unknown'], ['requests', 'range'], ['uvicorn', 'unknown'], ['wild', 'range']]);
     assert.match(io.kv.REPORT, /this requirements file names no package index/);
+    assert.match(io.kv.REPORT, /^pip requirements file: \*\*0 updated/m);
     assert.match(io.kv.REPORT, /`requests` `>=2\.2` \(a version range, not an exact version\)/);
     assert.equal(io.charges.length, 0);
 });

@@ -215,7 +215,7 @@ export function sortResults(results) {
 export function lockfileReport(results, diff, { skipped = [], title = 'Upgrade X-Ray — lockfile report', verdict, coverage } = {}) {
     const c = summaryLine(results);
     const out = [`## ${title}`, '', ...overallLines(verdict, coverage, results),
-        `${diff.type} lockfile: **${diff.updated.length} updated, ${diff.added.length} added, ${diff.removed.length} removed** package versions.`, '',
+        `${diff.type === 'requirements' ? 'pip requirements file' : `${diff.type} lockfile`}: **${diff.updated.length} updated, ${diff.added.length} added, ${diff.removed.length} removed** package versions.`, '',
         countsLine(c, results), ''];
     const sorted = sortResults(results);
     // Only packages read in full go into the compact list; partly analysed ones keep their coverage detail.

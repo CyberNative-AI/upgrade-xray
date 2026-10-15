@@ -118,7 +118,7 @@ export async function runInput(input, io) {
         if (includeAdded) work = work.concat(diff.added.map((a) => ({ ecosystem: diff.ecosystem, name: a.name, to: a.to, added: true })));
         const skipped = work.slice(maxPackages).map((w) => ({ name: w.name, to: w.to }));
         work = work.slice(0, maxPackages);
-        log.info(`${diff.type} lockfile: ${diff.updated.length} updated, ${diff.added.length} added, ${diff.removed.length} removed, ${diff.nonRegistry.length} not looked up; analysing ${work.length}`);
+        log.info(`${diff.type === 'requirements' ? 'requirements file' : `${diff.type} lockfile`}: ${diff.updated.length} updated, ${diff.added.length} added, ${diff.removed.length} removed, ${diff.nonRegistry.length} not looked up; analysing ${work.length}`);
         const results = await pool(work, concurrency, async (spec) => {
             const r = await analyze(spec);
             await io.pushData(toItem(r, { mode: 'lockfile', lockfileType: diff.type }));
