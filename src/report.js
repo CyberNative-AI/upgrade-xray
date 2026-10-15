@@ -162,6 +162,14 @@ const OVERALL = {
     error: '⚪ Not analysed — no change could be analysed',
 };
 
+// Why a lockfile type leaves the origin out, for the assumePublicRegistry hint.
+const UNRECORDED_WHY = {
+    pnpm: 'pnpm does not record the registry of packages from the default registry',
+    poetry: 'Poetry does not record its default source',
+    npm: 'this package-lock.json has no "resolved" URL for them',
+    uv: 'this uv.lock has no source for them',
+};
+
 function overallLines(verdict, coverage, results) {
     if (!verdict) return [];
     const lowOnly = verdict === 'clean' && results.some((r) => labelOf(r) === 'lowOnly');
@@ -232,7 +240,8 @@ export function lockfileReport(results, diff, { skipped = [], title = 'Upgrade X
         out.push('**Not looked up (origin not proven to be the public registry; names were not sent anywhere):**', '');
         for (const n of diff.nonRegistry.slice(0, 30)) out.push(`- ${code(n.name)} ${text(n.to)} from ${code(n.source)}`);
         if (diff.nonRegistry.length > 30) out.push(`- …and ${diff.nonRegistry.length - 30} more in OUTPUT.`);
-        if (diff.nonRegistry.some((n) => n.origin === 'unknown')) out.push('', `Entries with no recorded origin can be checked if you confirm they all come from the public registry: set \`assumePublicRegistry\` to true.`);
+        const unrecorded = diff.nonRegistry.filter((n) => n.origin === 'unknown').length;
+        if (unrecorded) out.push('', `${unrecorded} of these ${unrecorded === 1 ? 'has' : 'have'} no recorded origin: ${UNRECORDED_WHY[diff.type] || 'the lockfile does not say where they came from'}. If this project installs only from the public registry, ${unrecorded === 1 ? 'it' : 'they'} can be checked: set \`assumePublicRegistry\` to true (in the GitHub Action: \`assume-public-registry: true\`). Leave it off if the project uses a private registry or mirror.`);
         out.push('');
     }
     if (skipped.length) out.push(`Skipped ${skipped.length} change(s) above the package limit: ${skipped.slice(0, 30).map((s) => `${code(s.name)} ${text(s.to)}`).join(', ')}${skipped.length > 30 ? ' …' : ''}`, '');

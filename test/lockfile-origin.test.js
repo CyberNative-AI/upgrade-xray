@@ -128,3 +128,18 @@ test('reported sources drop credentials and query tokens', async () => {
     const out = JSON.stringify(io.kv.OUTPUT) + io.kv.REPORT;
     assert.ok(!out.includes('ghp_SECRET') && !out.includes('deadbeef'));
 });
+
+test('unrecorded origins: the REPORT says why and names the setting in both the Actor and the Action', async () => {
+    const pnpm = (v) => `lockfileVersion: '9.0'\npackages:\n  quiet@${v}:\n    resolution: {integrity: sha512-x}\n  loud@${v}:\n    resolution: {integrity: sha512-x}\n  internal-lib@${v}:\n    resolution: {integrity: sha512-x, tarball: https://npm.corp.example/internal-lib/-/internal-lib-${v}.tgz}\n`;
+    const report = (await outbound(pnpm('1.0.0'), pnpm('1.0.1'), { lockfileName: 'pnpm-lock.yaml' })).io.kv.REPORT;
+    assert.match(report, /2 of these have no recorded origin: pnpm does not record the registry/);
+    assert.match(report, /set `assumePublicRegistry` to true \(in the GitHub Action: `assume-public-registry: true`\)/);
+    assert.match(report, /Leave it off if the project uses a private registry or mirror\./);
+    const poetry = (v) => `[[package]]\nname = "default-src"\nversion = "${v}"\n`;
+    assert.match((await outbound(poetry('1.0.0'), poetry('1.1.0'), { lockfileName: 'poetry.lock' })).io.kv.REPORT, /1 of these has no recorded origin: Poetry does not record its default source\. If this project installs only from the public registry, it can be checked/);
+    // Only proven-private entries: nothing to opt into, so no hint.
+    const priv = (v) => npmV3({ 'node_modules/secret': { version: v, resolved: `https://npm.corp.example/secret/-/secret-${v}.tgz` } });
+    const r3 = (await outbound(priv('1.0.0'), priv('1.0.1'))).io.kv.REPORT;
+    assert.match(r3, /Not looked up/);
+    assert.doesNotMatch(r3, /assumePublicRegistry|assume-public-registry/);
+});
