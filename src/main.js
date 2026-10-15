@@ -6,7 +6,7 @@ import { packageMarkdown, packagesReport, lockfileReport, summaryLine, packageVe
 const EVENT_PACKAGE = 'package-diff';
 const EVENT_LOCKFILE = 'lockfile-report';
 
-/** "npm:chalk@5.6.0..5.6.1", "pypi:requests==2.32.0", "@scope/x@^2", "chalk" */
+/** "npm:chalk@5.6.2..6.0.0", "pypi:requests==2.32.0", "@scope/x@^2", "chalk" */
 export function parsePackageSpec(s, defaultEcosystem = 'npm') {
     if (s && typeof s === 'object') return { ecosystem: (s.ecosystem || defaultEcosystem).toLowerCase(), name: s.name, from: s.from || s.fromVersion, to: s.to || s.toVersion };
     let t = String(s).trim();
@@ -140,7 +140,7 @@ export async function runInput(input, io) {
     // ---------------- Package mode ----------------
     const raw = [].concat(input.packages || []);
     if (!raw.length) {
-        await io.fail('Give "packages" (for example "npm:chalk@5.6.0..5.6.1") or both lockfiles.');
+        await io.fail('Give "packages" (for example "npm:chalk@5.6.2..6.0.0") or both lockfiles.');
         return null;
     }
     const specs = [];
