@@ -11,6 +11,14 @@ const SEV = { high: 'High', medium: 'Medium', low: 'Low', info: 'Info' };
 const code = (s) => `\`${String(s).replace(/`/g, "'").replace(/\s+/g, ' ').slice(0, 160)}\``;
 const loc = (l) => (l.line ? `${l.file}:${l.line}` : l.file);
 
+// npm scopes look like GitHub mentions ("@solana/web3.js" would ping the "solana" account when the
+// report is posted as a pull-request comment). Outside code spans, put every mention-like token in
+// a code span. Idempotent, so composed reports can apply it again.
+const MENTION = /(^|[^\w`@/])@([A-Za-z0-9][\w.-]*(?:\/[\w.-]+)?)/g;
+export function quoteMentions(md) {
+    return md.split(/(`[^`\n]*`)/).map((part, i) => (i % 2 ? part : part.replace(MENTION, '$1`@$2`'))).join('');
+}
+
 export const DISCLAIMER = 'Static analysis of the published files: nothing was installed or executed. A finding is a change worth reading, not proof of malware, and an empty report does not prove a package is safe.';
 
 /**
@@ -34,7 +42,7 @@ export function packageMarkdown(r, { heading = '###', maxFindings = 25 } = {}) {
     const lines = [];
     if (r.error) {
         lines.push(`${heading} ${VERDICT.error} — ${r.name}${r.toVersion ? ` ${r.toVersion}` : ''} (${r.ecosystem})`, '', `Could not analyse: ${r.error}`, '');
-        return lines.join('\n');
+        return quoteMentions(lines.join('\n'));
     }
     lines.push(`${heading} ${VERDICT[packageVerdict(r)]} — ${packageTitle(r)}`, '');
     const sec = r.findings.filter((f) => f.category !== 'breaking' && f.severity !== 'info');
@@ -66,7 +74,7 @@ export function packageMarkdown(r, { heading = '###', maxFindings = 25 } = {}) {
     const fc = r.files;
     if (fc) lines.push('', `<sub>Files: ${fc.added} added, ${fc.changed} changed, ${fc.removed} removed (of ${fc.total}).${r.notes?.length ? ` Notes: ${r.notes.join('; ')}` : ''}</sub>`);
     lines.push('');
-    return lines.join('\n');
+    return quoteMentions(lines.join('\n'));
 }
 
 export function coverageText(cov) {
@@ -114,7 +122,7 @@ export function packagesReport(results, { title = 'Upgrade X-Ray', verdict, cove
     const out = [`## ${title}`, '', ...overallLines(verdict, coverage), countsLine(c), ''];
     for (const r of sortResults(results)) out.push(packageMarkdown(r));
     out.push(`<sub>${DISCLAIMER}</sub>`, '');
-    return out.join('\n');
+    return quoteMentions(out.join('\n'));
 }
 
 const RANK = { review: 0, notice: 1, error: 2, incomplete: 3, clean: 4 };
@@ -155,5 +163,5 @@ export function lockfileReport(results, diff, { skipped = [], title = 'Upgrade X
     if (skipped.length) out.push(`Skipped ${skipped.length} change(s) above the package limit: ${skipped.slice(0, 30).map((s) => `${s.name} ${s.to}`).join(', ')}${skipped.length > 30 ? ' …' : ''}`, '');
     if (diff.removed.length) out.push(`<details><summary>Removed packages (${diff.removed.length})</summary>\n\n${diff.removed.slice(0, 100).map((r) => `${r.name} ${r.from}`).join(', ')}\n\n</details>`, '');
     out.push(`<sub>${DISCLAIMER}</sub>`, '');
-    return out.join('\n');
+    return quoteMentions(out.join('\n'));
 }

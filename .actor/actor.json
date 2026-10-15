@@ -1,7 +1,7 @@
 {
     "actorSpecification": 1,
     "name": "upgrade-xray",
-    "title": "Upgrade X-Ray: what a dependency update really changes",
+    "title": "Upgrade X-Ray: npm & PyPI dependency update diff",
     "description": "Diff the published npm or PyPI files of a dependency update before you merge it: new install scripts, new network, shell or eval calls, removed functions and new dependencies. Static analysis only; nothing is installed or run.",
     "version": "0.1",
     "buildTag": "latest",

@@ -12,6 +12,15 @@ For each update, Upgrade X-Ray downloads the old and new published artifacts (np
 
 Each package gets a verdict: **🔴 review before merge**, **🟡 worth a look**, **🟢 nothing new found**, or **⚪ partly analysed** when nothing was found but some of its files could only be pattern-scanned or not read, or one of its artifacts could not be compared. The package lists those files and the reason.
 
+## Example: two compromised npm releases from 2025
+
+These are the reports Upgrade X-Ray writes for two well-known bad releases, each compared with the clean version before it (the registry no longer serves the bad versions, so they were read from the labelled dataset described under *Measured accuracy*):
+
+- [`@ctrl/tinycolor` 4.1.0 → 4.1.1](examples/ctrl-tinycolor-4.1.1.md) — a self-spreading worm: a new `postinstall` script that runs a bundled file which steals npm and GitHub tokens and republishes packages.
+- [`debug` 4.4.1 → 4.4.2](examples/debug-4.4.2.md) — a crypto-wallet drainer hidden as obfuscated code inside the package's normal entry point, with no install script.
+
+`fixtures/example-report.js` regenerates them.
+
 ## Two ways to run it
 
 **Package mode** — one or more updates, charged per package:
