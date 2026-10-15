@@ -76,20 +76,40 @@ export async function npmPackument(name, { full = false } = {}) {
     try { return await packuments.get(key); } catch (e) { packuments.delete(key); throw e; }
 }
 
+/**
+ * Why an exact npm version is missing: the full packument keeps the publish time of a version
+ * npm later removed (a malware takedown or the publisher's request). Returns a sentence, or null
+ * when the registry has no record of the version.
+ */
+async function npmRemovedReason(name, version) {
+    const v = semver.valid(version);
+    if (!v) return null;
+    let doc;
+    try { doc = await npmPackument(name, { full: true }); } catch { return null; }
+    if (!Object.hasOwn(doc.time || {}, v) || Object.hasOwn(doc.versions || {}, v)) return null;
+    const t = new Date(doc.time[v]);
+    const when = Number.isNaN(t.getTime()) ? '' : ` on ${t.toISOString().slice(0, 10)}`;
+    const latest = doc['dist-tags']?.latest;
+    const holding = typeof latest === 'string' && semver.valid(latest) && /-security$/.test(latest)
+        ? ` npm has replaced the whole package with a security holding package (${latest}), which usually means it contained malicious code.`
+        : '';
+    return `${name}@${v} was published${when} and later removed from the npm registry, so its files can no longer be downloaded and compared. npm removes a version after a security takedown or at its publisher's request; a lockfile or pull request that still pins it needs a closer look.${holding}`;
+}
+
 /** Resolve "from"/"to" versions of an npm package. */
 export async function npmResolve(name, from, to, { added = false } = {}) {
     const doc = await npmPackument(name);
     const versions = Object.keys(doc.versions || {});
-    const pick = (v, label) => {
+    const pick = async (v, label) => {
         if (!v) return null;
         if (doc.versions[v]) return v;
         if (doc['dist-tags']?.[v]) return doc['dist-tags'][v];
         const r = semver.maxSatisfying(versions, v);
-        if (!r) throw new NotFound(`${name}: no published version matches ${label} "${v}"`);
+        if (!r) throw new NotFound(await npmRemovedReason(name, v) || `${name}: no published version matches ${label} "${v}"`);
         return r;
     };
-    const toV = pick(to || 'latest', 'to');
-    let fromV = pick(from, 'from');
+    const toV = await pick(to || 'latest', 'to');
+    let fromV = await pick(from, 'from');
     if (added) return { from: null, to: toV, fromMeta: null, toMeta: doc.versions[toV] };
     if (!fromV) {
         const pre = semver.prerelease(toV);
