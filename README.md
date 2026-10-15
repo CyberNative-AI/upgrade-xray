@@ -10,7 +10,7 @@ For each update, Upgrade X-Ray downloads the old and new published artifacts (np
 - **Removed functions** — exports removed from each entry point or module (JS, TypeScript declarations, Python public names), removed import paths and commands, a switch to ES modules, and raised engine / Python requirements.
 - **New dependencies** — with their age and listed owners: a dependency first published days before the release that shares no listed maintainer or repository with the package (or lists none) is flagged high; one that does not exist on the registry, or comes from git or a URL, is flagged high. Owners are compared as the registry lists them (npm maintainers and repository URLs, PyPI's self-declared author emails and project URLs); they are not verified identities.
 
-Each package gets a verdict: **🔴 review before merge**, **🟡 worth a look**, **🟢 nothing new found**, or **⚪ partly analysed** when nothing was found but some of its files could only be pattern-scanned or not read, or one of its artifacts could not be compared. The package lists those files and the reason.
+Each package gets a verdict: **🔴 review before merge**, **🟡 worth a look**, **🟢 nothing new found** (**🟢 low notes only** when its only findings are Low ones, which never raise a verdict), or **⚪ partly analysed** when nothing was found but some of its files could only be pattern-scanned or not read, or one of its artifacts could not be compared. The package lists those files and the reason.
 
 ## Example: two compromised npm releases from 2025
 

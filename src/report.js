@@ -3,6 +3,7 @@ const VERDICT = {
     review: '🔴 REVIEW BEFORE MERGE',
     notice: '🟡 WORTH A LOOK',
     clean: '🟢 NOTHING NEW FOUND',
+    lowOnly: '🟢 LOW NOTES ONLY',
     error: '⚪ NOT ANALYSED',
     incomplete: '⚪ PARTLY ANALYSED',
 };
@@ -26,6 +27,13 @@ export function text(s) {
         .map((w) => (w.includes('@') ? `\`${w}\`` : w.replace(/[\\<>&[\]]/g, (c) => ESC[c])))
         .join(' ');
 }
+/**
+ * Low findings never change a verdict, so a "clean" package can still list some. Its label must
+ * not then say "nothing new found": labels and counts say "low notes only" for those packages.
+ */
+const lowNotes = (r) => r.findings?.filter((f) => f.category !== 'breaking' && f.severity === 'low') ?? [];
+const labelOf = (r) => { const v = packageVerdict(r); return v === 'clean' && lowNotes(r).length ? 'lowOnly' : v; };
+
 const loc = (l) => (l.line ? `${l.file}:${l.line}` : l.file);
 
 export const DISCLAIMER = 'Static analysis of the published files: nothing was installed or executed. A finding is a change worth reading, not proof of malware, and an empty report does not prove a package is safe.';
@@ -53,7 +61,7 @@ export function packageMarkdown(r, { heading = '###', maxFindings = 25 } = {}) {
         lines.push(`${heading} ${VERDICT.error} — ${code(r.name)}${r.toVersion ? ` ${text(r.toVersion)}` : ''} (${r.ecosystem === 'pypi' ? 'PyPI' : 'npm'})`, '', `Could not analyse: ${text(r.error)}`, '');
         return lines.join('\n');
     }
-    lines.push(`${heading} ${VERDICT[packageVerdict(r)]} — ${packageTitle(r)}`, '');
+    lines.push(`${heading} ${VERDICT[labelOf(r)]} — ${packageTitle(r)}`, '');
     const sec = r.findings.filter((f) => f.category !== 'breaking' && f.severity !== 'info');
     const brk = r.findings.filter((f) => f.category === 'breaking');
     const info = r.findings.filter((f) => f.category !== 'breaking' && f.severity === 'info');
@@ -154,9 +162,10 @@ const OVERALL = {
     error: '⚪ Not analysed — no change could be analysed',
 };
 
-function overallLines(verdict, coverage) {
+function overallLines(verdict, coverage, results) {
     if (!verdict) return [];
-    const out = [`**Overall: ${OVERALL[verdict]}**`];
+    const lowOnly = verdict === 'clean' && results.some((r) => labelOf(r) === 'lowOnly');
+    const out = [`**Overall: ${lowOnly ? '🟢 Nothing needing review; low notes only' : OVERALL[verdict]}**`];
     if (coverage && !coverage.complete) {
         const gaps = [];
         if (coverage.failed) gaps.push(`${coverage.failed} could not be analysed`);
@@ -176,11 +185,14 @@ export function summaryLine(results) {
     return c;
 }
 
-const countsLine = (c) => `**${c.review} to review · ${c.notice} worth a look · ${c.clean} nothing new${c.incomplete ? ` · ${c.incomplete} partly analysed` : ''}${c.error ? ` · ${c.error} not analysed` : ''}**`;
+function countsLine(c, results) {
+    const low = results.filter((r) => labelOf(r) === 'lowOnly').length;
+    return `**${c.review} to review · ${c.notice} worth a look · ${c.clean - low} nothing new${low ? ` · ${low} low notes only` : ''}${c.incomplete ? ` · ${c.incomplete} partly analysed` : ''}${c.error ? ` · ${c.error} not analysed` : ''}**`;
+}
 
 export function packagesReport(results, { title = 'Upgrade X-Ray', verdict, coverage } = {}) {
     const c = summaryLine(results);
-    const out = [`## ${title}`, '', ...overallLines(verdict, coverage), countsLine(c), ''];
+    const out = [`## ${title}`, '', ...overallLines(verdict, coverage, results), countsLine(c, results), ''];
     for (const r of sortResults(results)) out.push(packageMarkdown(r));
     out.push(`<sub>${DISCLAIMER}</sub>`, '');
     return out.join('\n');
@@ -193,19 +205,21 @@ export function sortResults(results) {
 
 export function lockfileReport(results, diff, { skipped = [], title = 'Upgrade X-Ray — lockfile report', verdict, coverage } = {}) {
     const c = summaryLine(results);
-    const out = [`## ${title}`, '', ...overallLines(verdict, coverage),
+    const out = [`## ${title}`, '', ...overallLines(verdict, coverage, results),
         `${diff.type} lockfile: **${diff.updated.length} updated, ${diff.added.length} added, ${diff.removed.length} removed** package versions.`, '',
-        countsLine(c), ''];
+        countsLine(c, results), ''];
     const sorted = sortResults(results);
     // Only packages read in full go into the compact list; partly analysed ones keep their coverage detail.
     const loud = sorted.filter((r) => packageVerdict(r) !== 'clean');
     for (const r of loud) out.push(packageMarkdown(r));
     const quiet = sorted.filter((r) => packageVerdict(r) === 'clean');
     if (quiet.length) {
-        out.push('<details><summary>Nothing new found in ' + quiet.length + ' package(s)</summary>', '');
+        const low = quiet.filter((r) => labelOf(r) === 'lowOnly').length;
+        out.push(`<details><summary>${low ? `Nothing needing review in ${quiet.length} package(s); ${low} with low notes` : `Nothing new found in ${quiet.length} package(s)`}</summary>`, '');
         for (const r of quiet) {
             const brk = r.findings.filter((f) => f.category === 'breaking' && f.severity !== 'info').length;
             out.push(`- ${packageTitle(r)}${brk ? ` — ${brk} API/compatibility change(s)` : ''}`);
+            for (const g of groupFindings(lowNotes(r))) out.push(`  - **${SEV.low}** ${groupLine(g)}`);
         }
         out.push('', '</details>', '');
     }
