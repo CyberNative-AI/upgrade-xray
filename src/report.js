@@ -9,24 +9,43 @@ const VERDICT = {
 };
 const SEV = { high: 'High', medium: 'Medium', low: 'Low', info: 'Info' };
 
-// Every value that comes from a package, a registry or a lockfile goes through code() or text(), so
-// it cannot change the Markdown around it. Reports are posted as pull-request comments, where
-// "@solana/web3.js" outside a code span would notify the "solana" GitHub account.
+import { MARKED_TITLE, mark, markedNote, segments, unmark } from './prose.js';
+import { ARTIFACT_KINDS } from './registry.js';
+
+// Every value that comes from a package, a registry or a lockfile is shown as code, so it cannot
+// change the Markdown around it. Reports are posted as pull-request comments, where
+// "@solana/web3.js" outside a code span would notify the "solana" GitHub account, and where a
+// repository's own autolink prefixes can turn any word of text into a link. Only fixed prose the
+// tool wrote itself (src/prose.js) is shown as text, decided by where a string was built, never by
+// what it contains.
+
+const span = (s, max) => `\`${unmark(s).replace(/`/g, "'").replace(/\s+/g, ' ').slice(0, max)}\``;
 
 /** An untrusted value as a code span: no backticks or line breaks inside, so the span always closes. */
-export const code = (s) => `\`${String(s).replace(/`/g, "'").replace(/\s+/g, ' ').slice(0, 160)}\``;
+export const code = (s) => span(s, 160);
+
+/** Error messages and other untrusted text shown whole: one code span, kept long enough to read. */
+const opaque = (s) => span(s, 1000);
+
+// The tool's own fixed text on one line, with Markdown characters escaped (a title says
+// "__init__"), so it reads exactly as written.
+const ESC = { '\\': '\\\\', '<': '&lt;', '>': '&gt;', '&': '&amp;', '[': '\\[', ']': '\\]', '*': '\\*', _: '\\_', '~': '\\~' };
+const fixed = (s) => s.replace(/`/g, "'").replace(/\s+/g, ' ').replace(/[\\<>&[\]*_~]/g, (c) => ESC[c]);
 
 /**
- * Untrusted prose (error messages, finding titles, notes): one line, no HTML, entities, links,
- * backticks or backslash escapes. Every word that contains an "@" becomes a code span as a whole,
- * so no "@" is ever outside code, whatever is next to it ("@one@two" stays one span).
+ * Prose the tool built: a title or note template with each package value marked (src/prose.js).
+ * Call it only with a marked form read from its Symbol key, never with a string from elsewhere.
  */
-const ESC = { '\\': '\\\\', '<': '&lt;', '>': '&gt;', '&': '&amp;', '[': '\\[', ']': '\\]' };
-export function text(s) {
-    return String(s).replace(/`/g, "'").split(/\s+/)
-        .map((w) => (w.includes('@') ? `\`${w}\`` : w.replace(/[\\<>&[\]]/g, (c) => ESC[c])))
-        .join(' ');
+export function trustedProse(marked) {
+    return segments(marked).map((seg, i) => (i % 2 ? (seg ? code(seg) : '') : fixed(seg))).join('');
 }
+
+/** A finding's title: its marked form when diffSnapshots built it, otherwise the whole title as code. */
+const titleText = (f) => (f[MARKED_TITLE] !== undefined ? trustedProse(f[MARKED_TITLE]) : opaque(f.title));
+
+/** Note i of a result: the tool's own notes as prose, anything else (error messages) as code. */
+const noteText = (r, i) => { const m = markedNote(r, i); return m !== undefined ? trustedProse(m) : opaque(r.notes[i]); };
+
 /**
  * Low findings never change a verdict, so a "clean" package can still list some. Its label must
  * not then say "nothing new found": labels and counts say "low notes only" for those packages.
@@ -51,14 +70,14 @@ export function packageVerdict(r) {
 
 export function packageTitle(r) {
     const eco = r.ecosystem === 'pypi' ? 'PyPI' : 'npm';
-    const range = r.fromVersion ? `${text(r.fromVersion)} → ${text(r.toVersion)}` : `new at ${text(r.toVersion)}`;
+    const range = r.fromVersion ? `${code(r.fromVersion)} → ${code(r.toVersion)}` : `new at ${code(r.toVersion)}`;
     return `${code(r.name)} ${range} (${eco})`;
 }
 
 export function packageMarkdown(r, { heading = '###', maxFindings = 25 } = {}) {
     const lines = [];
     if (r.error) {
-        lines.push(`${heading} ${VERDICT.error} — ${code(r.name)}${r.toVersion ? ` ${text(r.toVersion)}` : ''} (${r.ecosystem === 'pypi' ? 'PyPI' : 'npm'})`, '', `Could not analyse: ${text(r.error)}`, '');
+        lines.push(`${heading} ${VERDICT.error} — ${code(r.name)}${r.toVersion ? ` ${code(r.toVersion)}` : ''} (${r.ecosystem === 'pypi' ? 'PyPI' : 'npm'})`, '', `Could not analyse: ${opaque(r.error)}`, '');
         return lines.join('\n');
     }
     lines.push(`${heading} ${VERDICT[labelOf(r)]} — ${packageTitle(r)}`, '');
@@ -77,7 +96,7 @@ export function packageMarkdown(r, { heading = '###', maxFindings = 25 } = {}) {
     if (groups.length > maxFindings) lines.push(`- …and ${groups.length - maxFindings} more in the dataset item.`);
     if (brk.length) {
         lines.push('', '<details><summary>API and compatibility changes</summary>', '');
-        for (const f of brk) lines.push(`- ${f.severity === 'info' ? '' : `**${SEV[f.severity]}** `}${text(f.title)}`);
+        for (const f of brk) lines.push(`- ${f.severity === 'info' ? '' : `**${SEV[f.severity]}** `}${titleText(f)}`);
         lines.push('', '</details>');
     }
     if (info.length) {
@@ -86,7 +105,7 @@ export function packageMarkdown(r, { heading = '###', maxFindings = 25 } = {}) {
         lines.push('', '</details>');
     }
     const fc = r.files;
-    if (fc) lines.push('', `<sub>Files: ${fc.added} added, ${fc.changed} changed, ${fc.removed} removed (of ${fc.total}).${r.notes?.length ? ` Notes: ${r.notes.map(text).join('; ')}` : ''}</sub>`);
+    if (fc) lines.push('', `<sub>Files: ${fc.added} added, ${fc.changed} changed, ${fc.removed} removed (of ${fc.total}).${r.notes?.length ? ` Notes: ${r.notes.map((_, i) => noteText(r, i)).join('; ')}` : ''}</sub>`);
     lines.push('');
     return lines.join('\n');
 }
@@ -94,54 +113,43 @@ export function packageMarkdown(r, { heading = '###', maxFindings = 25 } = {}) {
 const ITEMS_SHOWN = 6;
 
 /**
- * "New in <file>, <file>: …" names up to two files from the finding's own locations. They are
- * package data, so they are taken out of the title and shown as code: a file named
- * "www.example.com .py" or "&#64;victim.py" would otherwise render as a link.
- */
-function namedFiles(f) {
-    const m = /^(New|Has) in /.exec(f.title);
-    if (!m) return null;
-    const files = [...new Set((f.locations || []).map((l) => l.file))].slice(0, 2);
-    const prefix = `${m[0]}${files.join(', ')}: `;
-    return files.length && f.title.startsWith(prefix) ? { files, title: `${m[1]}${f.title.slice(prefix.length - 2)}` } : null;
-}
-
-/**
  * Findings that differ only in what was matched become one line: "New: network access — fetch()"
  * and "New: network access — XMLHttpRequest()" in the same file are one finding to a reader.
- * Groups keep the order of their first finding; locations are merged without repeats.
+ * Groups keep the order of their first finding; locations are merged without repeats. A label cut
+ * from a title the tool built keeps its marked values ("New in <file>: …") and is shown as prose;
+ * a label from any other title is shown as code.
  */
 export function groupFindings(findings) {
     const groups = new Map();
-    for (const finding of findings) {
-        const named = namedFiles(finding);
-        const f = named ? { ...finding, title: named.title } : finding;
+    for (const f of findings) {
+        const trusted = f[MARKED_TITLE] !== undefined;
+        const title = trusted ? f[MARKED_TITLE] : f.title;
+        const detail = trusted && f.detail ? mark(f.detail) : f.detail;
         const art = f.artifact || '';
         let key; let label; let item = null; let extra = '';
         if (f.kind === 'new-dependency' && f.dependency) {
-            label = f.title.slice(0, f.title.indexOf(':')).trim() || 'New dependency';
-            item = `${code(f.dependency)}${f.spec ? ` ${text(f.spec)}` : ''}`;
+            label = title.slice(0, title.indexOf(':')).trim() || 'New dependency';
+            item = `${code(f.dependency)}${f.spec ? ` ${code(f.spec)}` : ''}`;
             extra = f.detail || '';
-            key = `${f.severity}|dep|${label}|${extra}|${art}`;
+            key = `${f.severity}|dep|${trusted}|${label}|${extra}|${art}`;
         } else if ((f.kind === 'new-host' || f.kind === 'minified-blob') && f.detail) {
             // The detail is a pre-joined list (cut at 15 or 10); the title holds the full count.
-            label = f.title;
+            label = title;
             key = `${f.severity}|${f.kind}|${label}|${art}|${groups.size}`;
-            groups.set(key, { severity: f.severity, label, items: f.detail.split(', ').map(code), total: Number(f.title.match(/^\d+/)?.[0]) || 0, extra: '', artifact: art, locations: (f.locations || []).map(loc).filter((x, i, a) => a.indexOf(x) === i), more: Boolean(f.moreLocations) });
+            groups.set(key, { severity: f.severity, label, trusted, items: f.detail.split(', ').map(code), total: Number(f.title.match(/^\d+/)?.[0]) || 0, extra: '', artifact: art, locations: (f.locations || []).map(loc).filter((x, i, a) => a.indexOf(x) === i), more: Boolean(f.moreLocations) });
             continue;
-        } else if (f.detail && f.title.includes(` — ${f.detail}`)) {
-            label = f.title.replace(` — ${f.detail}`, '');
+        } else if (f.detail && title.includes(` — ${detail}`)) {
+            label = title.replace(` — ${detail}`, '');
             item = code(f.detail);
-            key = `${f.severity}|${f.kind}|${label}|${art}`;
+            key = `${f.severity}|${f.kind}|${trusted}|${label}|${art}`;
         } else {
-            label = f.title;
+            label = title;
             // The install-time summary's detail repeats the signals listed on their own lines.
             if (f.detail && !f.title.includes(f.detail) && f.kind !== 'install-script-capability') extra = f.detail;
             key = `${f.severity}|${f.kind}|${label}|${extra}|${art}|${groups.size}`;
         }
-        if (named) key += `|${named.files.join('\u0000')}`;
         let g = groups.get(key);
-        if (!g) groups.set(key, (g = { severity: f.severity, label, files: named?.files, items: [], extra, artifact: art, locations: [], more: false }));
+        if (!g) groups.set(key, (g = { severity: f.severity, label, trusted, items: [], extra, artifact: art, locations: [], more: false }));
         if (item && !g.items.some((x) => x.toLowerCase() === item.toLowerCase())) g.items.push(item);
         for (const l of f.locations || []) { const s = loc(l); if (!g.locations.includes(s)) g.locations.push(s); }
         if (f.moreLocations) g.more = true;
@@ -151,16 +159,15 @@ export function groupFindings(findings) {
 
 function groupLine(g, { where = true } = {}) {
     const many = g.items.length > 1;
-    let label = text(g.label);
-    if (g.files) label = label.replace(/^(New|Has)/, (head) => `${head} in ${g.files.map(code).join(', ')}`);
-    if (many && /^New (optional \(extra\) )?dependency$/.test(g.label)) label = `${label.replace(/dependency$/, 'dependencies')} (${g.items.length})`;
+    let label = g.trusted ? trustedProse(g.label) : code(g.label);
+    if (many && g.trusted && /^New (optional \(extra\) )?dependency$/.test(g.label)) label = `${label.replace(/dependency$/, 'dependencies')} (${g.items.length})`;
     const shown = g.items.slice(0, ITEMS_SHOWN).join(', ');
     const total = Math.max(g.items.length, g.total || 0);
     const rest = total > ITEMS_SHOWN ? ` and ${total - Math.min(ITEMS_SHOWN, g.items.length)} more` : '';
     const items = g.items.length ? `${g.items.length === 1 && !g.extra ? ' — ' : ': '}${shown}${rest}` : '';
     const extra = g.extra ? `${g.items.length ? ' — ' : ': '}${code(g.extra)}` : '';
     const at = where && g.locations.length ? ` · in ${g.locations.slice(0, 3).map(code).join(', ')}${g.locations.length > 3 || g.more ? ' …' : ''}` : '';
-    return `${label}${items}${extra}${at}${g.artifact ? ` _(${text(g.artifact)})_` : ''}`;
+    return `${label}${items}${extra}${at}${g.artifact ? ` _(${ARTIFACT_KINDS.includes(g.artifact) ? g.artifact : code(g.artifact)})_` : ''}`;
 }
 
 export function coverageText(cov) {
@@ -251,21 +258,21 @@ export function lockfileReport(results, diff, { skipped = [], title = 'Upgrade X
     }
     if (diff.originChanges?.length) {
         out.push('**Moved to the public registry from another source** (scanned as new packages; check that the public package is the one you meant — a common dependency-confusion pattern):', '');
-        for (const n of diff.originChanges.slice(0, 30)) out.push(`- ${code(n.name)} ${text(n.to)} (was: ${text(n.fromOrigin)})`);
+        for (const n of diff.originChanges.slice(0, 30)) out.push(`- ${code(n.name)} ${code(n.to)} (was: ${opaque(n.fromOrigin)})`);
         out.push('');
     }
     if (diff.nonRegistry.length) {
         out.push(diff.nonRegistry.some((n) => n.origin === 'range')
             ? '**Not looked up (no exact version, or origin not proven to be the public registry; names were not sent anywhere):**'
             : '**Not looked up (origin not proven to be the public registry; names were not sent anywhere):**', '');
-        for (const n of diff.nonRegistry.slice(0, 30)) out.push(n.origin === 'range' ? `- ${code(n.name)} ${code(n.to)} (a version range, not an exact version)` : `- ${code(n.name)} ${text(n.to)} from ${code(n.source)}`);
+        for (const n of diff.nonRegistry.slice(0, 30)) out.push(n.origin === 'range' ? `- ${code(n.name)} ${code(n.to)} (a version range, not an exact version)` : `- ${code(n.name)} ${code(n.to)} from ${code(n.source)}`);
         if (diff.nonRegistry.length > 30) out.push(`- …and ${diff.nonRegistry.length - 30} more in OUTPUT.`);
         const unrecorded = diff.nonRegistry.filter((n) => n.origin === 'unknown').length;
         if (unrecorded) out.push('', `${unrecorded} of these ${unrecorded === 1 ? 'has' : 'have'} no recorded origin: ${UNRECORDED_WHY[diff.type] || 'the lockfile does not say where they came from'}. If this project installs only from the public registry, ${unrecorded === 1 ? 'it' : 'they'} can be checked: set \`assumePublicRegistry\` to true (in the GitHub Action: \`assume-public-registry: true\`). Leave it off if the project uses a private registry or mirror.`);
         out.push('');
     }
-    if (skipped.length) out.push(`Skipped ${skipped.length} change(s) above the package limit: ${skipped.slice(0, 30).map((s) => `${code(s.name)} ${text(s.to)}`).join(', ')}${skipped.length > 30 ? ' …' : ''}`, '');
-    if (diff.removed.length) out.push(`<details><summary>Removed packages (${diff.removed.length})</summary>\n\n${diff.removed.slice(0, 100).map((r) => `${code(r.name)} ${text(r.from)}`).join(', ')}\n\n</details>`, '');
+    if (skipped.length) out.push(`Skipped ${skipped.length} change(s) above the package limit: ${skipped.slice(0, 30).map((s) => `${code(s.name)} ${code(s.to)}`).join(', ')}${skipped.length > 30 ? ' …' : ''}`, '');
+    if (diff.removed.length) out.push(`<details><summary>Removed packages (${diff.removed.length})</summary>\n\n${diff.removed.slice(0, 100).map((r) => `${code(r.name)} ${code(r.from)}`).join(', ')}\n\n</details>`, '');
     out.push(`<sub>${DISCLAIMER}</sub>`, '');
     return out.join('\n');
 }

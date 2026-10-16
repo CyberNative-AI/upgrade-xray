@@ -109,7 +109,7 @@ test('requirements: an include (-r, -c) or an option from an environment variabl
         assert.ok(io.kv.OUTPUT.nonRegistry.some((n) => n.name === 'django' && n.origin === 'private'), opt);
     }
     const f = (v) => `-r base.txt\n${body(v)}`;
-    assert.match((await outbound(f('6.1.1'), f('6.1.2'))).io.kv.REPORT, /`django` 6\.1\.2 from `a -r or -c file, which is not read`/);
+    assert.match((await outbound(f('6.1.1'), f('6.1.2'))).io.kv.REPORT, /`django` `6\.1\.2` from `a -r or -c file, which is not read`/);
 });
 
 test('requirements: options that are abbreviated, unknown, quoted or malformed refuse the file', async () => {

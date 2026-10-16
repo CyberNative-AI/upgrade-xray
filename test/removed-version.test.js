@@ -80,7 +80,7 @@ test('removed "to" version: named as removed with its publish date, not analysed
     assert.equal(item(io, 'rv-ok').verdict, 'clean');
     assert.deepEqual(io.charges.map((c) => c.eventName), ['package-diff']);
     // The report code-quotes name@version so it can never mention a GitHub account.
-    assert.match(io.kv.REPORT, /Could not analyse: `rv-chalk@5\.6\.1` was published on 2025-09-08 and later removed/);
+    assert.match(io.kv.REPORT, /Could not analyse: `rv-chalk@5\.6\.1 was published on 2025-09-08 and later removed from the npm registry, [^`]* needs a closer look\.`/);
 });
 
 test('removed "from" version and a "v" prefix are recognised', async () => {

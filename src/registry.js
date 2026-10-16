@@ -234,6 +234,9 @@ function wheelRank(fn) {
     return -1;
 }
 
+/** The kinds of PyPI artifact compared (the `kind` of each pair below and of each finding's `artifact`). */
+export const ARTIFACT_KINDS = ['wheel', 'sdist'];
+
 /** Choose comparable artifacts: best wheel and the sdist, for both versions. */
 export function pypiPickArtifacts(fromFiles, toFiles) {
     const pairs = [];

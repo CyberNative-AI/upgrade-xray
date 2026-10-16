@@ -3,6 +3,7 @@ import { readArchive, stripCommonRoot } from './archive.js';
 import { npmSnapshot, pypiSnapshot } from './snapshot.js';
 import { diffSnapshots } from './diff.js';
 import { SEVERITY_RANK } from './signals.js';
+import { mergeNotes } from './prose.js';
 import {
     npmResolve, npmTarball, npmDepInfo, npmPackument, pypiResolve, pypiPickArtifacts, pypiFile, pypiDepInfo, npmOwners, pypiOwners, pypiProject,
 } from './registry.js';
@@ -97,6 +98,7 @@ export async function analyzePypi({ name, from, to, added = false }, { enrich = 
     }
     if (!parts.length) throw new Error(errors.join('; '));
     const merged = mergeArtifactResults(parts);
+    // Error messages are not the tool's prose: the report shows each of these notes as code.
     merged.notes.push(...errors);
     if (errors.length) {
         merged.coverage.complete = false;
@@ -138,7 +140,7 @@ export function mergeArtifactResults(parts) {
             findings.push({ ...f, artifact: p.kind });
         }
     }
-    const out = { ...primary.result, findings, notes: [...new Set(parts.flatMap((p) => p.result.notes))], coverage: mergeCoverage(parts.map((p) => p.result.coverage)) };
+    const out = { ...primary.result, findings, ...mergeNotes(parts.map((p) => p.result)), coverage: mergeCoverage(parts.map((p) => p.result.coverage)) };
     out.files = primary.result.files;
     rescore(out);
     out.breaking = findings.some((f) => f.category === 'breaking' && f.severity !== 'info');

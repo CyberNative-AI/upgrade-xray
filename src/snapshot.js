@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { parse as parseToml } from 'smol-toml';
 import { scanJs, scanDts, AST_LIMIT as JS_AST_LIMIT } from './js-scan.js';
 import { scanString, scanSourceText } from './signals.js';
+import { addNote, mark as v } from './prose.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const JS_EXT = /\.(c|m)?jsx?$|\.(c|m)?tsx?$/i;
@@ -94,9 +95,9 @@ function gap(snap, list, file, reason) {
 
 /** Skip files the archive reader could not or would not extract. Returns true when skipped. */
 function skipUnread(snap, p, buf) {
-    if (buf.oversize) { gap(snap, 'skippedFiles', p, `${buf.oversize} bytes, above the per-file limit`); snap.notes.push(`${p} skipped (${buf.oversize} bytes)`); return true; }
-    if (buf.encrypted) { gap(snap, 'skippedFiles', p, 'encrypted'); snap.notes.push(`${p} skipped (encrypted)`); return true; }
-    if (buf.unsupported !== undefined) { gap(snap, 'skippedFiles', p, `unsupported compression method ${buf.unsupported}`); snap.notes.push(`${p} skipped (compression method ${buf.unsupported})`); return true; }
+    if (buf.oversize) { gap(snap, 'skippedFiles', p, `${buf.oversize} bytes, above the per-file limit`); addNote(snap, `${v(p)} skipped (${v(buf.oversize)} bytes)`); return true; }
+    if (buf.encrypted) { gap(snap, 'skippedFiles', p, 'encrypted'); addNote(snap, `${v(p)} skipped (encrypted)`); return true; }
+    if (buf.unsupported !== undefined) { gap(snap, 'skippedFiles', p, `unsupported compression method ${buf.unsupported}`); addNote(snap, `${v(p)} skipped (compression method ${v(buf.unsupported)})`); return true; }
     return false;
 }
 
@@ -179,8 +180,8 @@ export async function npmSnapshot(files) {
     const snap = { ecosystem: 'npm', files: new Map(), signals: [], installScripts: {}, installFiles: new Set(), deps: {}, api: {}, meta: {}, notes: [], coverage: newCoverage() };
     let pkg = {};
     if (files.has('package.json')) {
-        try { pkg = JSON.parse(files.get('package.json').toString('utf8')); } catch { snap.notes.push('package.json is not valid JSON'); }
-    } else snap.notes.push('no package.json in the published tarball');
+        try { pkg = JSON.parse(files.get('package.json').toString('utf8')); } catch { addNote(snap, 'package.json is not valid JSON'); }
+    } else addNote(snap, 'no package.json in the published tarball');
     snap.meta = {
         name: pkg.name, version: pkg.version, type: pkg.type || 'commonjs', engines: pkg.engines?.node || null,
         bin: typeof pkg.bin === 'string' ? { [pkg.name]: pkg.bin } : pkg.bin || {},
@@ -276,7 +277,7 @@ export async function pypiSnapshot(files, kind) {
         snap.files.set(p, { size: buf.oversize || buf.length, hash: h });
         if (skipUnread(snap, p, buf)) continue;
         if (/\.dist-info\/METADATA$/.test(p) || p === 'PKG-INFO') metadataText = metadataText || buf.toString('utf8');
-        if (p === 'pyproject.toml') { try { pyproject = parseToml(buf.toString('utf8')); } catch { snap.notes.push('pyproject.toml did not parse'); } }
+        if (p === 'pyproject.toml') { try { pyproject = parseToml(buf.toString('utf8')); } catch { addNote(snap, 'pyproject.toml did not parse'); } }
         const bk = binaryKind(buf);
         if (bk) { snap.signals.push({ kind: 'binary-executable', detail: bk, file: p, line: 0 }); continue; }
         if (/\.(so|pyd|dll|dylib|wasm)$/i.test(p) || /\.so\.\d/.test(p)) { snap.signals.push({ kind: 'native-code', detail: path.extname(p).toLowerCase(), file: p, line: 0 }); continue; }

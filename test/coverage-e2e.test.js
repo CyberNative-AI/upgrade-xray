@@ -173,9 +173,9 @@ test('lockfile mode (npm): fully parsed control is clean; partial packages are i
     assert.match(compact, /Nothing new found in 1 package\(s\)/);
     assert.match(compact, /cov-full/);
     assert.doesNotMatch(compact, /cov-ts|cov-broken/);
-    assert.match(md, /⚪ PARTLY ANALYSED — `cov-ts` 1\.0\.0 → 1\.0\.1/);
+    assert.match(md, /⚪ PARTLY ANALYSED — `cov-ts` `1\.0\.0` → `1\.0\.1`/);
     assert.match(md, /src\/util\.ts: TypeScript source; pattern scan only/);
-    assert.match(md, /⚪ PARTLY ANALYSED — `cov-broken` 1\.0\.0 → 1\.0\.1/);
+    assert.match(md, /⚪ PARTLY ANALYSED — `cov-broken` `1\.0\.0` → `1\.0\.1`/);
     assert.match(md, /lib\/odd\.js: not parsed/);
 });
 

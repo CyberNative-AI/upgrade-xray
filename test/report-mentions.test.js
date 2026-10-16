@@ -43,9 +43,9 @@ test('the oracle finds the mentions it should', () => {
     assert.equal(renderedMentions('a &#64;b').length, 1, 'entities are decoded');
 });
 
-test('adjacent at-signs in an error stay inside one code span when rendered', () => {
+test('an error message is one code span when rendered, adjacent at-signs included', () => {
     const out = packageMarkdown({ name: 'pkg', ecosystem: 'npm', error: 'malformed archive @one@victim' });
-    assert.ok(md.render(out).includes('<code>@one@victim</code>'), md.render(out));
+    assert.ok(md.render(out).includes('<code>malformed archive @one@victim</code>'), md.render(out));
     assert.deepEqual(renderedMentions(out), []);
 });
 
@@ -76,7 +76,9 @@ test('lockfile REPORT and dataset markdown carry no mentions, and scoped names s
     });
     await runInput({ lockfileBefore: before, lockfileAfter: after }, io);
     assert.deepEqual(renderedMentions(io.kv.REPORT), [], io.kv.REPORT);
-    for (const name of ['@solana/web3.js', '@types/old', '@octo/new', '@corp/priv', '@evil/drain']) assert.ok(codes(io.kv.REPORT).includes(name), `${name} is shown as code`);
+    for (const name of ['@solana/web3.js', '@types/old', '@octo/new', '@corp/priv']) assert.ok(codes(io.kv.REPORT).includes(name), `${name} is shown as code`);
+    // A title diffSnapshots did not build is shown whole as code.
+    assert.ok(codes(io.kv.REPORT).some((c) => c.startsWith('New dependency @evil/drain first published')), io.kv.REPORT);
     assert.ok(io.items.length > 0);
     for (const item of io.items) assert.deepEqual(renderedMentions(item.markdown || ''), [], item.name);
     assert.deepEqual(renderedMentions(io.kv.OUTPUT.markdown), []);

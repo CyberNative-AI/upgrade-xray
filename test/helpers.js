@@ -1,5 +1,9 @@
 // Small builders for synthetic archives and a recording fetch stub used by the tests.
 import zlib from 'node:zlib';
+import { MARKED_TITLE, unmark } from '../src/prose.js';
+
+/** A finding as diffSnapshots builds it: a title template with each package value marked. */
+export const built = (f) => ({ ...f, title: unmark(f.title), [MARKED_TITLE]: f.title });
 
 function tarHeader(name, size, type = '0') {
     const h = Buffer.alloc(512);
