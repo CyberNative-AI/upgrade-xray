@@ -80,3 +80,9 @@ test('a credential path the package already read elsewhere is high when an exist
     // The same file unchanged, or the indicator only in the file that already had it: nothing.
     assert.equal((await diff(before, { ...before, 'pkg/config.py': before['pkg/config.py'] + 'X = 1\n' })).findings.filter((x) => x.kind === 'credential-path').length, 0);
 });
+
+test('a strong indicator in a new file is compared package-wide (moved code is not a new finding)', async () => {
+    const before = { 'pkg/__init__.py': '', 'pkg/config.py': 'import os\nRC = os.path.expanduser("~/.npmrc")\n' };
+    const moved = await diff(before, { 'pkg/__init__.py': '', 'pkg/settings/__init__.py': '', 'pkg/settings/rc.py': before['pkg/config.py'] });
+    assert.equal(moved.findings.filter((x) => x.kind === 'credential-path').length, 0, moved.findings.map((f) => f.title).join('\n'));
+});
