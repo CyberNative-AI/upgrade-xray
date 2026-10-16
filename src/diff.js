@@ -1,7 +1,12 @@
 // Compare two snapshots of the same package and produce findings and a verdict.
 import { KINDS, SEVERITY_RANK } from './signals.js';
 
-const INSTALL_CAP_KINDS = new Set(['network', 'shell', 'eval', 'encoded-exec', 'env-bulk', 'credential-path', 'exfil-endpoint', 'self-publish', 'persistence', 'secret-harvest', 'obfuscation', 'dynamic-require']);
+const INSTALL_CAP_KINDS = new Set(['network', 'shell', 'python-spawn', 'eval', 'encoded-exec', 'env-bulk', 'credential-path', 'exfil-endpoint', 'self-publish', 'persistence', 'secret-harvest', 'obfuscation', 'dynamic-require']);
+// Strong indicators are compared file by file as well: one already elsewhere in the package (an
+// npm tool that reads .npmrc, a migration script that runs subprocess at import time) must not
+// hide the same indicator newly added to another existing file. Ordinary capabilities (network,
+// shell, eval) stay package-wide: per file they mostly report refactors.
+const PER_FILE_KINDS = new Set(['encoded-exec', 'credential-path', 'exfil-endpoint', 'self-publish', 'persistence', 'secret-harvest', 'global-hook']);
 const MAX_LOCATIONS = 5;
 const INERT_DIR = /(^|\/)(tests?|__tests__|testing|spec|examples?|docs?|benchmarks?|fixtures?)\//i;
 const LOWER = { high: 'medium', medium: 'low', low: 'info', info: 'info' };
@@ -17,6 +22,9 @@ function groupSignals(snap) {
     return m;
 }
 
+/** A Python process started when the package is imported: from a package __init__ or at module level. */
+const importLaunch = (g) => g.kind === 'python-spawn' && g.locations.some((l) => !INERT_DIR.test(l.file) && (/ at import time$/.test(g.detail) || /(^|\/)__init__\.py$/.test(l.file)));
+
 function kindsByFile(snap, file) {
     return new Set(snap.signals.filter((s) => s.file === file).map((s) => `${s.kind}\u0000${s.detail}`));
 }
@@ -24,6 +32,9 @@ function kindsByFile(snap, file) {
 function isNonRegistrySpec(spec) {
     return /^(git(\+\w+)?:|git@|github:|gitlab:|bitbucket:|https?:|file:|link:)|^[\w-]+\/[\w.-]+(#.*)?$/.test(spec) && !/^npm:/.test(spec);
 }
+
+/** "Network access" -> "network access"; acronyms and names keep their case ("URL with…", "CI", "Python"). */
+const lower = (label) => (/^[A-Z][a-z]/.test(label) ? label[0].toLowerCase() + label.slice(1) : label);
 
 const fmtLoc = (l) => (l.line ? `${l.file}:${l.line}` : l.file);
 
@@ -54,7 +65,7 @@ export function diffSnapshots(old, neu, { addedPackage = false } = {}) {
         const before = was ? kindsByFile(oldSnap, f) : new Set();
         const gained = [...kindsByFile(neu, f)].filter((k) => !before.has(k) && INSTALL_CAP_KINDS.has(k.split('\u0000')[0]));
         if (gained.length) {
-            add({ severity: 'high', category: 'security', kind: 'install-script-capability', title: `Code that runs at install or start-up gained: ${[...new Set(gained.map((g) => KINDS[g.split('\u0000')[0]][1].toLowerCase()))].join('; ')}`, detail: gained.map((g) => g.replace('\u0000', ': ')).slice(0, 8).join(' | '), locations: [{ file: f, line: 0 }] });
+            add({ severity: 'high', category: 'security', kind: 'install-script-capability', title: `Code that runs at install or start-up gained: ${[...new Set(gained.map((g) => lower(KINDS[g.split('\u0000')[0]][1])))].join('; ')}`, detail: gained.map((g) => g.replace('\u0000', ': ')).slice(0, 8).join(' | '), locations: [{ file: f, line: 0 }] });
         } else if (was && oldSnap.files.get(f).hash !== neu.files.get(f)?.hash) {
             add({ severity: 'low', category: 'security', kind: 'install-script', title: `Install-time file changed: ${f}`, detail: 'no new capability detected in it', locations: [{ file: f, line: 0 }] });
         }
@@ -65,18 +76,29 @@ export function diffSnapshots(old, neu, { addedPackage = false } = {}) {
     const after = groupSignals(neu);
     const newHosts = [];
     const minified = [];
-    for (const [key, g] of after) {
-        if (before.has(key)) continue;
+    // Same capability already in the old package, but new to an existing file that changed.
+    const fileOld = new Set(oldSnap.signals.map((s) => `${s.file}\u0000${s.kind}\u0000${s.detail}`));
+    const changed = (f) => oldSnap.files.has(f) && oldSnap.files.get(f).hash !== neu.files.get(f)?.hash;
+    const gained = new Map();
+    for (const s of neu.signals) {
+        const key = `${s.kind}\u0000${s.detail}`;
+        if (!before.has(key) || !(PER_FILE_KINDS.has(s.kind) || importLaunch({ ...s, locations: [s] })) || /^module /.test(s.detail)) continue;
+        if (!changed(s.file) || fileOld.has(`${s.file}\u0000${key}`)) continue;
+        if (!gained.has(key)) gained.set(key, { kind: s.kind, detail: s.detail, locations: [], inFile: true });
+        if (gained.get(key).locations.length < 50) gained.get(key).locations.push({ file: s.file, line: s.line });
+    }
+    const gainedInFile = [...gained.values()];
+    for (const g of [...[...after].filter(([key]) => !before.has(key)).map(([, v]) => v), ...gainedInFile]) {
         const [sev, label] = KINDS[g.kind] || ['low', g.kind];
         if (g.kind === 'new-host') { newHosts.push(g); continue; }
         if (g.kind === 'minified-blob') { minified.push(g); continue; }
-        let severity = sev;
+        let severity = importLaunch(g) ? 'high' : sev;
         // A package that is new to the tree has no "before": keep only the strong indicators at their level.
         if (!old && SEVERITY_RANK[sev] < SEVERITY_RANK.high) severity = 'info';
         // Only in tests, examples or docs: shipped but not run on install or import. One level lower.
         const inertOnly = g.locations.every((l) => INERT_DIR.test(l.file) && !neu.installFiles.has(l.file));
         if (inertOnly) severity = LOWER[severity];
-        add({ severity, category: 'security', kind: g.kind, title: `${old ? 'New' : 'Has'}: ${label.toLowerCase()} — ${g.detail}${inertOnly ? ' (only in tests/examples/docs)' : ''}`, detail: g.detail, locations: g.locations.slice(0, MAX_LOCATIONS), moreLocations: Math.max(0, g.locations.length - MAX_LOCATIONS) });
+        add({ severity, category: 'security', kind: g.kind, title: `${old ? 'New' : 'Has'}${g.inFile ? ` in ${[...new Set(g.locations.map((l) => l.file))].slice(0, 2).join(', ')}` : ''}: ${lower(label)} — ${g.detail}${importLaunch(g) && !/ at import time$/.test(g.detail) ? ' (in a package __init__, runs on import)' : ''}${inertOnly ? ' (only in tests/examples/docs)' : ''}`, detail: g.detail, locations: g.locations.slice(0, MAX_LOCATIONS), moreLocations: Math.max(0, g.locations.length - MAX_LOCATIONS) });
     }
     if (newHosts.length) {
         add({ severity: old ? 'low' : 'info', category: 'security', kind: 'new-host', title: `${newHosts.length} new hard-coded host name(s)`, detail: newHosts.map((h) => h.detail).slice(0, 15).join(', '), locations: newHosts.slice(0, MAX_LOCATIONS).map((h) => h.locations[0]) });

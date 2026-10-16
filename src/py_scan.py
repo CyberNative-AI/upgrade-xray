@@ -21,6 +21,8 @@ NET_CALLS = re.compile(r"^(urllib\.request\.urlopen|urlopen|urllib\.urlopen|urll
 DECODERS = re.compile(r"(^|\.)(b64decode|b32decode|b16decode|b85decode|a85decode|decodebytes|decodestring|unhexlify|fromhex|decompress|loads|rot13|decode)$")
 FETCHERS = re.compile(r"(urlopen|requests\.get|\.get|\.read|\.text|\.content)$")
 OBF_NAME = re.compile(r"^[OoIl0_]{8,}$|^_{2,}[0-9a-f]{6,}$")
+PY_INTERP = re.compile(r"^(python[0-9.]*|pythonw|py)(\.exe)?$", re.I)
+PY_COMMAND = re.compile(r"(^|[\s/\\])python[0-9.]*w?(\.exe)?\s+(?!-)\S", re.I)
 
 
 def dotted(node):
@@ -67,6 +69,8 @@ class Scanner(ast.NodeVisitor):
         self.long_encoded = 0
         self.inline_exec = False
         self.obf_names = 0
+        self.spawn_py = False
+        self.net_call = False
 
     def push(self, kind, detail, node=None):
         self.signals.append({"kind": kind, "detail": str(detail)[:120], "line": getattr(node, "lineno", 0)})
@@ -146,9 +150,17 @@ class Scanner(ast.NodeVisitor):
                 self.push("encoded-exec", "%s() launched with inline code: %s" % (name, INLINE_CODE.search(inline).group(0)), node)
             elif spawns_python and any(x == "-c" for x in strings_in(node)):
                 self.push("eval", name + "(sys.executable, '-c', ...)", node)
+            elif spawns_python or any(PY_INTERP.match(x.replace("\\", "/").rsplit("/", 1)[-1]) or PY_COMMAND.search(x) for x in strings_in(node)):
+                # A second interpreter on a file: the usual way to start a downloaded,
+                # decoded or bundled payload detached from the importing process.
+                self.spawn_py = True
+                self.push("python-spawn", name + "() starts a Python process", node)
+                if self.depth == 0:
+                    self.push("python-spawn", name + "() starts a Python process at import time", node)
         elif NET_CALLS.match(name):
             self.push("network", name + "()", node)
             self.network = True
+            self.net_call = True
             if self.depth == 0:
                 self.push("network", name + "() at import time", node)
         elif name in ("marshal.loads", "pickle.loads", "dill.loads") and self.eval_like:
@@ -251,6 +263,10 @@ def scan(path, src, want_exports):
         sc.push("obfuscation", "%d obfuscated identifier uses" % sc.obf_names)
     if sc.long_encoded and (sc.eval_like or sc.inline_exec):
         sc.push("encoded-exec", "%d long encoded string(s) plus exec/eval" % sc.long_encoded)
+    if sc.long_encoded and sc.spawn_py:
+        sc.push("encoded-exec", "%d long encoded string(s) plus a new Python process" % sc.long_encoded)
+    if sc.net_call and sc.spawn_py:
+        sc.push("encoded-exec", "downloads and starts a Python process in the same file")
     if sc.env_bulk and sc.network:
         sc.push("secret-harvest", "whole environment + network in one file")
     out = {"signals": sc.signals, "strings": sorted(sc.strings)[:5000], "parsed": parsed}

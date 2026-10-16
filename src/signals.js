@@ -21,6 +21,7 @@ export const KINDS = {
     'binary-executable': ['high', 'Ships a new executable binary'],
     network: ['medium', 'Network access'],
     shell: ['medium', 'Runs shell commands or child processes'],
+    'python-spawn': ['medium', 'Starts a new Python process'],
     eval: ['medium', 'Dynamic code evaluation'],
     'env-bulk': ['medium', 'Reads the whole environment'],
     'native-code': ['medium', 'Ships native code (.node, .so, .dll, .wasm)'],
