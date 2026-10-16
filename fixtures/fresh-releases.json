@@ -1,0 +1,1442 @@
+[
+ {
+  "ecosystem": "pypi",
+  "name": "boto3",
+  "rank": 1,
+  "split": "fresh",
+  "from": "1.43.105",
+  "to": "1.43.106",
+  "published": "2026-09-30T19:36:40.228176Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "idna",
+  "rank": 4,
+  "split": "fresh",
+  "from": "3.19",
+  "to": "3.20",
+  "published": "2026-09-17T14:11:03.168153Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "requests",
+  "rank": 7,
+  "split": "fresh",
+  "from": "2.34.1",
+  "to": "2.34.2",
+  "published": "2026-05-14T19:25:26.443000Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "pygments",
+  "rank": 12,
+  "split": "fresh",
+  "from": "2.20.0",
+  "to": "2.21.0",
+  "published": "2026-08-17T08:02:44.912148Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "python-dateutil",
+  "rank": 14,
+  "split": "fresh",
+  "from": "2.8.2",
+  "to": "2.9.0",
+  "published": "2024-03-01T03:52:51.479771Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "six",
+  "rank": 15,
+  "split": "fresh",
+  "from": "1.16.0",
+  "to": "1.17.0",
+  "published": "2024-12-04T17:35:26.475808Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "pluggy",
+  "rank": 16,
+  "split": "fresh",
+  "from": "1.5.0",
+  "to": "1.6.0",
+  "published": "2025-05-15T12:30:06.134003Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "botocore",
+  "rank": 17,
+  "split": "fresh",
+  "from": "1.43.105",
+  "to": "1.43.106",
+  "published": "2026-09-30T19:36:32.625152Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "click",
+  "rank": 20,
+  "split": "fresh",
+  "from": "8.4.2",
+  "to": "8.5.0",
+  "published": "2026-08-26T13:33:12.928043Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "pyjwt",
+  "rank": 37,
+  "split": "fresh",
+  "from": "2.15.0",
+  "to": "2.15.1",
+  "published": "2026-09-28T18:40:41.429003Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "jinja2",
+  "rank": 41,
+  "split": "fresh",
+  "from": "3.1.5",
+  "to": "3.1.6",
+  "published": "2025-03-05T20:05:00.369721Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "jsonschema",
+  "rank": 48,
+  "split": "fresh",
+  "from": "4.25.1",
+  "to": "4.26.0",
+  "published": "2026-01-07T13:41:05.306692Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "yarl",
+  "rank": 50,
+  "split": "fresh",
+  "from": "1.24.5",
+  "to": "1.25.1",
+  "published": "2026-09-15T19:29:53.114460Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "aiohttp",
+  "rank": 51,
+  "split": "fresh",
+  "from": "3.14.2",
+  "to": "3.14.3",
+  "published": "2026-07-23T01:52:08.217234Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "opentelemetry-api",
+  "rank": 55,
+  "split": "fresh",
+  "from": "1.44.0",
+  "to": "1.45.0",
+  "published": "2026-09-25T12:32:03.192401Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "mdurl",
+  "rank": 60,
+  "split": "fresh",
+  "from": "0.1.1",
+  "to": "0.1.2",
+  "published": "2022-08-14T12:40:09.779676Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "frozenlist",
+  "rank": 61,
+  "split": "fresh",
+  "from": "1.7.0",
+  "to": "1.8.0",
+  "published": "2025-10-06T05:35:23.699793Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "googleapis-common-protos",
+  "rank": 62,
+  "split": "fresh",
+  "from": "1.75.4",
+  "to": "1.75.5",
+  "published": "2026-09-29T19:25:48.735170Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "tqdm",
+  "rank": 63,
+  "split": "fresh",
+  "from": "4.70.0",
+  "to": "4.70.1",
+  "published": "2026-09-11T07:25:14.599062Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "aiosignal",
+  "rank": 66,
+  "split": "fresh",
+  "from": "1.3.2",
+  "to": "1.4.0",
+  "published": "2025-07-03T22:54:42.156277Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "annotated-doc",
+  "rank": 69,
+  "split": "fresh",
+  "from": "0.0.4",
+  "to": "0.0.5",
+  "published": "2026-07-28T13:50:57.239109Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "sniffio",
+  "rank": 72,
+  "split": "fresh",
+  "from": "1.3.0",
+  "to": "1.3.1",
+  "published": "2024-02-25T23:20:01.196159Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "google-auth",
+  "rank": 75,
+  "split": "fresh",
+  "from": "2.59.0",
+  "to": "2.59.1",
+  "published": "2026-09-30T17:26:24.017700Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "python-multipart",
+  "rank": 81,
+  "split": "fresh",
+  "from": "0.0.31",
+  "to": "0.0.32",
+  "published": "2026-06-04T16:18:57.319904Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "grpcio-status",
+  "rank": 86,
+  "split": "fresh",
+  "from": "1.83.1",
+  "to": "1.84.0",
+  "published": "2026-09-14T07:10:15.175494Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "grpcio",
+  "rank": 89,
+  "split": "fresh",
+  "from": "1.83.1",
+  "to": "1.84.0",
+  "published": "2026-09-14T06:56:48.720332Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "pyparsing",
+  "rank": 92,
+  "split": "fresh",
+  "from": "3.3.2",
+  "to": "3.3.3",
+  "published": "2026-09-20T20:59:04.025856Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "regex",
+  "rank": 93,
+  "split": "fresh",
+  "from": "2026.9.10",
+  "to": "2026.9.29",
+  "published": "2026-09-29T00:45:50.322376Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "ruff",
+  "rank": 94,
+  "split": "fresh",
+  "from": "0.16.8",
+  "to": "0.16.9",
+  "published": "2026-09-24T20:37:13.045587Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "watchfiles",
+  "rank": 95,
+  "split": "fresh",
+  "from": "1.2.0",
+  "to": "1.3.0",
+  "published": "2026-09-21T09:08:13.518274Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "s3fs",
+  "rank": 96,
+  "split": "fresh",
+  "from": "2026.7.0",
+  "to": "2026.9.0",
+  "published": "2026-09-18T19:02:52.933313Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "openai",
+  "rank": 97,
+  "split": "fresh",
+  "from": "3.22.0",
+  "to": "3.22.1",
+  "published": "2026-09-30T00:25:53.524766Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "google-api-core",
+  "rank": 98,
+  "split": "fresh",
+  "from": "2.39.0",
+  "to": "2.40.0",
+  "published": "2026-09-29T19:25:29.006708Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "soupsieve",
+  "rank": 99,
+  "split": "fresh",
+  "from": "2.9.2",
+  "to": "2.10",
+  "published": "2026-09-24T02:36:33.709594Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "scipy",
+  "rank": 100,
+  "split": "fresh",
+  "from": "1.18.0",
+  "to": "1.18.1",
+  "published": "2026-08-21T23:23:44.522812Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "beautifulsoup4",
+  "rank": 101,
+  "split": "fresh",
+  "from": "4.14.3",
+  "to": "4.15.0",
+  "published": "2026-06-07T16:44:21.566528Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "psutil",
+  "rank": 102,
+  "split": "fresh",
+  "from": "7.2.1",
+  "to": "7.2.2",
+  "published": "2026-01-28T18:14:57.293384Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "openpyxl",
+  "rank": 103,
+  "split": "fresh",
+  "from": "3.1.4",
+  "to": "3.1.5",
+  "published": "2024-06-28T14:03:41.161372Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "coverage",
+  "rank": 104,
+  "split": "fresh",
+  "from": "7.16.1",
+  "to": "7.16.2",
+  "published": "2026-09-27T12:25:34.675384Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "et-xmlfile",
+  "rank": 105,
+  "split": "fresh",
+  "from": "1.1.0",
+  "to": "2.0.0",
+  "published": "2024-10-25T17:25:39.051783Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "distro",
+  "rank": 107,
+  "split": "fresh",
+  "from": "1.8.0",
+  "to": "1.9.0",
+  "published": "2023-12-24T09:54:30.421191Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "opentelemetry-sdk",
+  "rank": 108,
+  "split": "fresh",
+  "from": "1.44.0",
+  "to": "1.45.0",
+  "published": "2026-09-25T12:32:25.399452Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "shellingham",
+  "rank": 109,
+  "split": "fresh",
+  "from": "1.5.3",
+  "to": "1.5.4",
+  "published": "2023-10-24T04:13:38.866125Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "tomli",
+  "rank": 110,
+  "split": "fresh",
+  "from": "2.4.0",
+  "to": "2.4.1",
+  "published": "2026-03-25T20:21:10.473841Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "proto-plus",
+  "rank": 112,
+  "split": "fresh",
+  "from": "1.28.4",
+  "to": "1.29.0",
+  "published": "2026-09-29T19:25:50.409203Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "colorama",
+  "rank": 113,
+  "split": "fresh",
+  "from": "0.4.5",
+  "to": "0.4.6",
+  "published": "2022-10-25T02:36:20.889702Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "typer",
+  "rank": 114,
+  "split": "fresh",
+  "from": "0.27.1",
+  "to": "0.27.2",
+  "published": "2026-08-28T10:26:53.752947Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "requests-oauthlib",
+  "rank": 115,
+  "split": "fresh",
+  "from": "1.3.1",
+  "to": "2.0.0",
+  "published": "2024-03-22T20:32:28.055244Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "truststore",
+  "rank": 116,
+  "split": "fresh",
+  "from": "0.10.3",
+  "to": "0.10.4",
+  "published": "2025-08-12T18:49:01.460601Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "sse-starlette",
+  "rank": 118,
+  "split": "fresh",
+  "from": "3.4.11",
+  "to": "3.5.0",
+  "published": "2026-09-28T17:48:13.228954Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "mcp",
+  "rank": 119,
+  "split": "fresh",
+  "from": "2.1.1",
+  "to": "2.2.0",
+  "published": "2026-09-07T16:06:19.711091Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "virtualenv",
+  "rank": 120,
+  "split": "fresh",
+  "from": "21.14.0",
+  "to": "21.14.1",
+  "published": "2026-09-29T23:33:32.333093Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "httpcore2",
+  "rank": 122,
+  "split": "fresh",
+  "from": "2.13.0",
+  "to": "2.13.1",
+  "published": "2026-09-23T07:47:19.365487Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "cachetools",
+  "rank": 123,
+  "split": "fresh",
+  "from": "7.1.8",
+  "to": "7.2.0",
+  "published": "2026-09-16T20:48:25.575214Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "huggingface-hub",
+  "rank": 124,
+  "split": "fresh",
+  "from": "1.33.0",
+  "to": "2.0.0",
+  "published": "2026-09-24T12:01:21.358531Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "exceptiongroup",
+  "rank": 125,
+  "split": "fresh",
+  "from": "1.3.0",
+  "to": "1.3.1",
+  "published": "2025-11-21T23:01:53.443434Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "dnspython",
+  "rank": 126,
+  "split": "fresh",
+  "from": "2.7.0",
+  "to": "2.8.0",
+  "published": "2025-09-07T18:57:58.071496Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "pytest-asyncio",
+  "rank": 127,
+  "split": "fresh",
+  "from": "1.3.0",
+  "to": "1.4.0",
+  "published": "2026-05-26T09:56:02.576082Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "oauthlib",
+  "rank": 128,
+  "split": "fresh",
+  "from": "3.3.1",
+  "to": "4.0.0",
+  "published": "2026-09-28T06:01:17.008169Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "more-itertools",
+  "rank": 129,
+  "split": "fresh",
+  "from": "11.0.2",
+  "to": "11.1.0",
+  "published": "2026-05-22T14:14:28.824912Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "opentelemetry-proto",
+  "rank": 130,
+  "split": "fresh",
+  "from": "1.44.0",
+  "to": "1.45.0",
+  "published": "2026-09-25T12:32:23.360658Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "uvloop",
+  "rank": 131,
+  "split": "fresh",
+  "from": "0.21.0",
+  "to": "0.22.1",
+  "published": "2025-10-16T22:16:11.430849Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "editables",
+  "rank": 132,
+  "split": "fresh",
+  "from": "0.5",
+  "to": "0.6",
+  "published": "2026-04-14T10:39:03.663700Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "distlib",
+  "rank": 135,
+  "split": "fresh",
+  "from": "0.4.2",
+  "to": "0.4.3",
+  "published": "2026-06-12T08:04:50.506662Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "ydb",
+  "rank": 136,
+  "split": "fresh",
+  "from": "3.33.0",
+  "to": "3.33.1",
+  "published": "2026-09-30T12:12:06.663654Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "sortedcontainers",
+  "rank": 137,
+  "split": "fresh",
+  "from": "2.3.0",
+  "to": "2.4.0",
+  "published": "2021-05-16T22:03:41.177807Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "psycopg2-binary",
+  "rank": 138,
+  "split": "fresh",
+  "from": "2.9.12",
+  "to": "2.9.13",
+  "published": "2026-09-09T23:54:05.509581Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "pytest-cov",
+  "rank": 139,
+  "split": "fresh",
+  "from": "7.0.0",
+  "to": "7.1.0",
+  "published": "2026-03-21T20:11:14.438324Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "redis",
+  "rank": 140,
+  "split": "fresh",
+  "from": "8.0.1",
+  "to": "8.1.0",
+  "published": "2026-07-30T08:50:58.497552Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "opentelemetry-exporter-otlp-proto-common",
+  "rank": 141,
+  "split": "fresh",
+  "from": "1.44.0",
+  "to": "1.45.0",
+  "published": "2026-09-25T12:32:12.663087Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "defusedxml",
+  "rank": 143,
+  "split": "fresh",
+  "from": "0.7.0",
+  "to": "0.7.1",
+  "published": "2021-03-08T10:59:24.450195Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "msgpack",
+  "rank": 145,
+  "split": "fresh",
+  "from": "1.2.2",
+  "to": "1.2.3",
+  "published": "2026-09-29T02:31:28.286525Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "hf-xet",
+  "rank": 146,
+  "split": "fresh",
+  "from": "1.5.2",
+  "to": "1.6.0",
+  "published": "2026-08-03T22:32:47.364941Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "rsa",
+  "rank": 147,
+  "split": "fresh",
+  "from": "4.9",
+  "to": "4.9.1",
+  "published": "2025-04-16T09:51:17.142309Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "fonttools",
+  "rank": 148,
+  "split": "fresh",
+  "from": "4.66.0",
+  "to": "4.66.1",
+  "published": "2026-09-29T16:09:50.871499Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "werkzeug",
+  "rank": 149,
+  "split": "fresh",
+  "from": "3.1.8",
+  "to": "3.1.9",
+  "published": "2026-09-27T18:33:39.685530Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "scikit-learn",
+  "rank": 150,
+  "split": "fresh",
+  "from": "1.9.0",
+  "to": "1.9.1",
+  "published": "2026-09-10T18:32:29.891551Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "prompt_toolkit",
+  "rank": 151,
+  "split": "fresh",
+  "from": "3.0.52",
+  "to": "3.0.53",
+  "published": "2026-07-26T20:56:12.512245Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "mako",
+  "rank": 152,
+  "split": "fresh",
+  "from": "1.4.2",
+  "to": "1.4.3",
+  "published": "2026-09-22T20:54:33.128860Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "orjson",
+  "rank": 153,
+  "split": "fresh",
+  "from": "3.11.9",
+  "to": "3.12.0",
+  "published": "2026-08-14T16:12:00.607529Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "opentelemetry-exporter-otlp-proto-http",
+  "rank": 154,
+  "split": "fresh",
+  "from": "1.44.0",
+  "to": "1.45.0",
+  "published": "2026-09-25T12:32:14.658604Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "alembic",
+  "rank": 155,
+  "split": "fresh",
+  "from": "1.19.2",
+  "to": "1.20.0",
+  "published": "2026-09-11T19:09:12.880981Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "threadpoolctl",
+  "rank": 157,
+  "split": "fresh",
+  "from": "3.6.0",
+  "to": "3.7.0",
+  "published": "2026-09-15T15:46:19.168647Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "isodate",
+  "rank": 158,
+  "split": "fresh",
+  "from": "0.6.1",
+  "to": "0.7.2",
+  "published": "2024-10-08T23:04:09.501382Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "pyopenssl",
+  "rank": 159,
+  "split": "fresh",
+  "from": "26.3.0",
+  "to": "26.4.0",
+  "published": "2026-08-01T19:50:48.940195Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "nodeenv",
+  "rank": 160,
+  "split": "fresh",
+  "from": "1.10.0",
+  "to": "1.11.0",
+  "published": "2026-09-26T11:29:19.933601Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "langchain",
+  "rank": 161,
+  "split": "fresh",
+  "from": "1.4.2",
+  "to": "1.4.3",
+  "published": "2026-09-28T20:17:22.978149Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "tokenizers",
+  "rank": 162,
+  "split": "fresh",
+  "from": "0.23.1",
+  "to": "0.23.2",
+  "published": "2026-09-03T08:55:30.874798Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "python-discovery",
+  "rank": 164,
+  "split": "fresh",
+  "from": "1.6.0",
+  "to": "1.6.1",
+  "published": "2026-09-18T01:31:52.448202Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "pynacl",
+  "rank": 165,
+  "split": "fresh",
+  "from": "1.6.1",
+  "to": "1.6.2",
+  "published": "2026-01-01T17:31:57.264836Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "websocket-client",
+  "rank": 166,
+  "split": "fresh",
+  "from": "1.9.1",
+  "to": "1.9.2",
+  "published": "2026-08-31T14:08:39.899926Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "mypy",
+  "rank": 167,
+  "split": "fresh",
+  "from": "2.3.0",
+  "to": "2.3.1",
+  "published": "2026-08-15T03:01:53.104898Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "joblib",
+  "rank": 168,
+  "split": "fresh",
+  "from": "1.5.3",
+  "to": "1.6.0",
+  "published": "2026-08-31T09:39:02.298565Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "email-validator",
+  "rank": 169,
+  "split": "fresh",
+  "from": "2.2.0",
+  "to": "2.3.0",
+  "published": "2025-08-26T13:09:05.858779Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "matplotlib",
+  "rank": 170,
+  "split": "fresh",
+  "from": "3.11.1",
+  "to": "3.11.2",
+  "published": "2026-09-11T19:02:59.277416Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "itsdangerous",
+  "rank": 171,
+  "split": "fresh",
+  "from": "2.1.2",
+  "to": "2.2.0",
+  "published": "2024-04-16T21:28:14.499616Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "azure-core",
+  "rank": 173,
+  "split": "fresh",
+  "from": "1.40.0",
+  "to": "1.41.0",
+  "published": "2026-05-07T23:30:56.357449Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "google-cloud-core",
+  "rank": 174,
+  "split": "fresh",
+  "from": "2.7.0",
+  "to": "2.8.0",
+  "published": "2026-09-29T19:25:35.361177Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "tzlocal",
+  "rank": 175,
+  "split": "fresh",
+  "from": "5.4.3",
+  "to": "5.4.4",
+  "published": "2026-06-29T08:03:38.666573Z"
+ },
+ {
+  "ecosystem": "pypi",
+  "name": "httpx-sse",
+  "rank": 176,
+  "split": "fresh",
+  "from": "0.4.2",
+  "to": "0.4.3",
+  "published": "2025-10-10T21:48:21.158886Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "semver",
+  "rank": 1,
+  "split": "fresh",
+  "from": "7.8.4",
+  "to": "7.8.5",
+  "published": "2026-06-19T18:32:48.972Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "ms",
+  "rank": 7,
+  "split": "fresh",
+  "from": "2.1.2",
+  "to": "2.1.3",
+  "published": "2020-12-08T13:54:35.223Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "tslib",
+  "rank": 16,
+  "split": "fresh",
+  "from": "2.8.0",
+  "to": "2.8.1",
+  "published": "2024-10-31T22:42:48.624Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "ajv",
+  "rank": 22,
+  "split": "fresh",
+  "from": "8.18.0",
+  "to": "8.20.0",
+  "published": "2026-04-24T15:22:16.529Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "escape-string-regexp",
+  "rank": 25,
+  "split": "fresh",
+  "from": "4.0.0",
+  "to": "5.0.0",
+  "published": "2021-04-17T15:45:50.334Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "json-schema-traverse",
+  "rank": 32,
+  "split": "fresh",
+  "from": "0.5.0",
+  "to": "1.0.0",
+  "published": "2020-12-13T10:56:54.719Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "glob-parent",
+  "rank": 34,
+  "split": "fresh",
+  "from": "6.0.1",
+  "to": "6.0.2",
+  "published": "2021-09-29T22:14:24.467Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "has-flag",
+  "rank": 37,
+  "split": "fresh",
+  "from": "5.0.0",
+  "to": "5.0.1",
+  "published": "2021-07-19T17:30:54.122Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "safe-buffer",
+  "rank": 40,
+  "split": "fresh",
+  "from": "5.2.0",
+  "to": "5.2.1",
+  "published": "2020-05-10T16:37:30.776Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "path-key",
+  "rank": 46,
+  "split": "fresh",
+  "from": "3.1.1",
+  "to": "4.0.0",
+  "published": "2021-04-09T12:04:51.822Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "postcss",
+  "rank": 51,
+  "split": "fresh",
+  "from": "8.5.27",
+  "to": "8.5.28",
+  "published": "2026-09-03T15:13:59.819Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "mime-db",
+  "rank": 53,
+  "split": "fresh",
+  "from": "1.53.0",
+  "to": "1.54.0",
+  "published": "2025-03-18T15:06:44.354Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "ws",
+  "rank": 54,
+  "split": "fresh",
+  "from": "8.21.3",
+  "to": "8.22.0",
+  "published": "2026-09-26T15:00:57.748Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "string_decoder",
+  "rank": 62,
+  "split": "fresh",
+  "from": "1.2.0",
+  "to": "1.3.0",
+  "published": "2019-08-07T09:20:36.634Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "isarray",
+  "rank": 67,
+  "split": "fresh",
+  "from": "2.0.4",
+  "to": "2.0.5",
+  "published": "2019-07-08T13:21:22.377Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "cross-spawn",
+  "rank": 69,
+  "split": "fresh",
+  "from": "7.0.5",
+  "to": "7.0.6",
+  "published": "2024-11-18T13:59:52.129Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "shebang-command",
+  "rank": 70,
+  "split": "fresh",
+  "from": "1.2.0",
+  "to": "2.0.0",
+  "published": "2019-09-06T14:53:25.901Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "shebang-regex",
+  "rank": 71,
+  "split": "fresh",
+  "from": "3.0.0",
+  "to": "4.0.0",
+  "published": "2021-08-13T23:09:49.954Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "acorn",
+  "rank": 74,
+  "split": "fresh",
+  "from": "8.17.0",
+  "to": "8.18.0",
+  "published": "2026-07-28T06:47:49.255Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "json5",
+  "rank": 75,
+  "split": "fresh",
+  "from": "2.2.2",
+  "to": "2.2.3",
+  "published": "2022-12-31T17:11:32.047Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "resolve-from",
+  "rank": 77,
+  "split": "fresh",
+  "from": "4.0.0",
+  "to": "5.0.0",
+  "published": "2019-04-15T04:06:25.601Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "estraverse",
+  "rank": 80,
+  "split": "fresh",
+  "from": "5.2.0",
+  "to": "5.3.0",
+  "published": "2021-10-25T12:18:17.722Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "@jridgewell/sourcemap-codec",
+  "rank": 81,
+  "split": "fresh",
+  "from": "1.5.5",
+  "to": "1.6.0",
+  "published": "2026-08-28T01:14:47.331Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "resolve",
+  "rank": 83,
+  "split": "fresh",
+  "from": "1.22.11",
+  "to": "1.22.12",
+  "published": "2026-04-11T17:41:35.049Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "path-exists",
+  "rank": 92,
+  "split": "fresh",
+  "from": "4.0.0",
+  "to": "5.0.0",
+  "published": "2021-08-12T10:43:19.346Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "punycode",
+  "rank": 93,
+  "split": "fresh",
+  "from": "2.3.0",
+  "to": "2.3.1",
+  "published": "2023-10-30T18:28:32.512Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "path-to-regexp",
+  "rank": 95,
+  "split": "fresh",
+  "from": "8.4.1",
+  "to": "8.4.2",
+  "published": "2026-04-01T21:17:05.201Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "cookie",
+  "rank": 97,
+  "split": "fresh",
+  "from": "2.0.0",
+  "to": "2.0.1",
+  "published": "2026-06-30T22:15:13.965Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "strip-json-comments",
+  "rank": 98,
+  "split": "fresh",
+  "from": "5.0.2",
+  "to": "5.0.3",
+  "published": "2025-08-08T14:14:05.044Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "@babel/generator",
+  "rank": 99,
+  "split": "fresh",
+  "from": "8.0.5",
+  "to": "8.0.6",
+  "published": "2026-09-18T13:47:44.263Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "negotiator",
+  "rank": 100,
+  "split": "fresh",
+  "from": "1.0.0",
+  "to": "1.1.0",
+  "published": "2026-08-20T16:45:05.235Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "eslint-scope",
+  "rank": 102,
+  "split": "fresh",
+  "from": "9.1.1",
+  "to": "9.1.2",
+  "published": "2026-03-06T22:32:49.946Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "readdirp",
+  "rank": 103,
+  "split": "fresh",
+  "from": "5.0.0",
+  "to": "5.1.1",
+  "published": "2026-08-06T06:26:38.975Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "get-stream",
+  "rank": 104,
+  "split": "fresh",
+  "from": "9.0.0",
+  "to": "9.0.1",
+  "published": "2024-03-16T18:05:50.308Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "yaml",
+  "rank": 105,
+  "split": "fresh",
+  "from": "2.9.0",
+  "to": "2.9.1",
+  "published": "2026-09-11T20:30:10.905Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "inherits",
+  "rank": 106,
+  "split": "fresh",
+  "from": "2.0.3",
+  "to": "2.0.4",
+  "published": "2019-06-19T20:18:52.465Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "tinyglobby",
+  "rank": 107,
+  "split": "fresh",
+  "from": "0.2.16",
+  "to": "0.2.17",
+  "published": "2026-05-30T19:57:21.717Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "chokidar",
+  "rank": 108,
+  "split": "fresh",
+  "from": "4.0.3",
+  "to": "5.0.0",
+  "published": "2025-11-25T23:28:06.854Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "graceful-fs",
+  "rank": 110,
+  "split": "fresh",
+  "from": "4.2.10",
+  "to": "4.2.11",
+  "published": "2023-03-16T19:30:19.323Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "caniuse-lite",
+  "rank": 112,
+  "split": "fresh",
+  "from": "1.0.30001813",
+  "to": "1.0.30001814",
+  "published": "2026-09-30T09:03:42.068Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "escalade",
+  "rank": 113,
+  "split": "fresh",
+  "from": "3.1.2",
+  "to": "3.2.0",
+  "published": "2024-08-29T22:59:36.690Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "is-stream",
+  "rank": 115,
+  "split": "fresh",
+  "from": "4.0.0",
+  "to": "4.0.1",
+  "published": "2024-02-19T19:14:12.256Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "function-bind",
+  "rank": 116,
+  "split": "fresh",
+  "from": "1.1.1",
+  "to": "1.1.2",
+  "published": "2023-10-12T19:08:19.687Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "yocto-queue",
+  "rank": 117,
+  "split": "fresh",
+  "from": "1.2.1",
+  "to": "1.2.2",
+  "published": "2025-11-11T06:32:08.991Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "get-intrinsic",
+  "rank": 118,
+  "split": "fresh",
+  "from": "1.3.0",
+  "to": "1.3.1",
+  "published": "2025-09-29T23:20:07.570Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "browserslist",
+  "rank": 119,
+  "split": "fresh",
+  "from": "4.29.2",
+  "to": "4.29.3",
+  "published": "2026-09-29T16:20:00.661Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "@babel/template",
+  "rank": 120,
+  "split": "fresh",
+  "from": "7.29.7",
+  "to": "8.0.0",
+  "published": "2026-06-16T13:33:09.318Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "has-symbols",
+  "rank": 121,
+  "split": "fresh",
+  "from": "1.0.3",
+  "to": "1.1.0",
+  "published": "2024-12-02T16:34:17.679Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "@jridgewell/resolve-uri",
+  "rank": 122,
+  "split": "fresh",
+  "from": "3.1.1",
+  "to": "3.1.2",
+  "published": "2024-02-14T19:32:38.143Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "fdir",
+  "rank": 123,
+  "split": "fresh",
+  "from": "6.4.6",
+  "to": "6.5.0",
+  "published": "2025-08-14T16:56:03.948Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "fast-deep-equal",
+  "rank": 124,
+  "split": "fresh",
+  "from": "3.1.1",
+  "to": "3.1.3",
+  "published": "2020-06-08T07:27:28.474Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "es-errors",
+  "rank": 125,
+  "split": "fresh",
+  "from": "1.2.1",
+  "to": "1.3.0",
+  "published": "2024-02-05T08:05:51.479Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "undici",
+  "rank": 126,
+  "split": "fresh",
+  "from": "8.11.1",
+  "to": "8.11.2",
+  "published": "2026-09-24T08:37:55.067Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "statuses",
+  "rank": 127,
+  "split": "fresh",
+  "from": "2.0.1",
+  "to": "2.0.2",
+  "published": "2025-06-06T19:56:01.385Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "@babel/runtime",
+  "rank": 128,
+  "split": "fresh",
+  "from": "8.0.0",
+  "to": "8.0.5",
+  "published": "2026-09-10T21:12:32.622Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "is-glob",
+  "rank": 129,
+  "split": "fresh",
+  "from": "4.0.2",
+  "to": "4.0.3",
+  "published": "2021-09-29T16:52:47.977Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "node-fetch",
+  "rank": 130,
+  "split": "fresh",
+  "from": "3.3.1",
+  "to": "3.3.2",
+  "published": "2023-07-25T11:50:17.626Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "pnpm",
+  "rank": 131,
+  "split": "fresh",
+  "from": "12.8.1",
+  "to": "12.8.2",
+  "published": "2026-09-30T01:15:12.518Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "source-map-js",
+  "rank": 132,
+  "split": "fresh",
+  "from": "1.2.1",
+  "to": "1.2.2",
+  "published": "2026-09-30T14:08:09.382Z"
+ },
+ {
+  "ecosystem": "npm",
+  "name": "node-releases",
+  "rank": 133,
+  "split": "fresh",
+  "from": "2.0.56",
+  "to": "2.0.57",
+  "published": "2026-09-23T08:29:14.458Z"
+ }
+]
