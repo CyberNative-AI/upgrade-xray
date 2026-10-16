@@ -6,7 +6,7 @@
         "packages": {
             "title": "Package updates",
             "type": "array",
-            "description": "One update per line. Formats: \"npm:chalk@5.6.2..6.0.0\", \"pypi:requests@2.31.0..2.32.0\", \"pypi:requests==2.32.0\" (compared with the release before it) or just \"axios\" (previous release vs latest). Charged per package analysed.",
+            "description": "One update per line. Formats: \"npm:chalk@5.6.2..6.0.0\", \"pypi:requests@2.31.0..2.32.0\", \"pypi:requests==2.32.0\" (compared with the release before it) or just \"axios\" (previous release vs latest). $0.02 per package analysed; a package that cannot be analysed is not charged.",
             "editor": "stringList",
             "prefill": [
                 "npm:chalk@5.6.2..6.0.0",
@@ -31,7 +31,7 @@
         "lockfileBefore": {
             "title": "Lockfile before the update (text)",
             "type": "string",
-            "description": "Paste the old package-lock.json, npm-shrinkwrap.json, pnpm-lock.yaml, uv.lock, poetry.lock or requirements.txt (up to 20 MB). With both lockfiles the run makes one lockfile report covering every changed package. Paste only a lockfile you are allowed to process, with credentials, tokens and signed URLs removed. It stays in this run's storage in your account; the names of packages proven to come from the public registry are sent to that registry, and nothing else is looked up.",
+            "description": "Paste the old package-lock.json, npm-shrinkwrap.json, pnpm-lock.yaml, uv.lock, poetry.lock or requirements.txt (up to 20 MB). With both lockfiles the run makes one lockfile report covering every changed package ($0.25, charged only if at least one package is analysed). From an AI agent or MCP client, the whole text of both files goes into the call; for lockfiles over about 20 KB, list the changed packages in \"packages\" instead (one per line, e.g. \"npm:chalk@5.6.2..6.0.0\"). Paste only a lockfile you are allowed to process, with credentials, tokens and signed URLs removed. It stays in this run's storage in your account; the names of packages proven to come from the public registry are sent to that registry, and nothing else is looked up.",
             "editor": "textarea",
             "sectionCaption": "Lockfile mode"
         },
