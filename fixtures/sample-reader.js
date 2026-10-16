@@ -66,7 +66,9 @@ export function readEncryptedZip(zip, password = 'infected', limits = LIMITS) {
         const name = zip.toString('utf8', p + 46, p + 46 + nlen);
         p += 46 + nlen + xlen + clen;
         if (name.endsWith('/')) continue;
-        if (usize > limits.maxFileBytes || usize > limits.maxUnpackedBytes - total) throw new ArchiveError(`sample zip: ${name} exceeds the size limits`);
+        // As the Actor's reader: one file above the per-file limit is listed as skipped, not fatal.
+        if (usize > limits.maxFileBytes) { files.set(name, Object.assign(Buffer.alloc(0), { oversize: usize })); continue; }
+        if (usize > limits.maxUnpackedBytes - total) throw new ArchiveError(`sample zip: ${name} exceeds the size limits`);
         bounded(zip, lho, 30);
         const start = lho + 30 + zip.readUInt16LE(lho + 26) + zip.readUInt16LE(lho + 28);
         bounded(zip, start, csize);
