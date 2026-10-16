@@ -162,68 +162,134 @@ function parsePoetry(text) {
 
 // ---- pip requirements files ----
 // Only exact pins (name==1.2.3 or name===1.2.3) name a version that can be compared. A range
-// (name>=1.2) or an unpinned name is listed, not looked up. Includes (-r, -c) are not followed.
+// (name>=1.2) or an unpinned name is listed, not looked up.
 // Origin: pip's index can be set outside the file (pip.conf, PIP_INDEX_URL), so a file with no
-// index option has no recorded origin. A file whose only index is the public PyPI is public. Any
-// other index, an extra index or --find-links makes every pin private: pip may take any name
-// from any of them, so no name of the file may be sent to the public registry.
+// index option has no recorded origin. A file whose only index is https://pypi.org/simple is
+// public. Any other index, an extra index or --find-links makes every pin private: pip may take
+// any name from any of them, so no name of the file may be sent to the public registry. Includes
+// (-r, -c) are not read and may set any of these, and so may an option written with ${VAR}; a
+// file with either has no name that can be looked up, even with assumePublicRegistry.
+// The file is read as pip reads it, and anything this cannot read the same way refuses the file.
 
 const REQ_NAME = /^([A-Za-z0-9][A-Za-z0-9._-]*)\s*(\[[^\]]*\])?\s*/;
+// Line breaks other than \n and \r\n, and white space other than space and tab: pip (Python) and
+// JavaScript split and trim these differently.
+const REQ_ODD_CHAR = /[\0-\x08\x0b\x0c\x0e-\x1f\x7f\x85\xa0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]|\r(?!\n)/;
 
-/** Logical lines: comments removed, backslash continuations joined, blank lines dropped. */
-function requirementLines(text) {
-    const out = [];
-    let cur = '';
-    for (const raw of text.split(/\r?\n/)) {
-        const line = raw.replace(/(^|\s)#.*$/, '');
-        if (/\\\s*$/.test(line)) { cur += line.replace(/\\\s*$/, ' '); continue; }
-        cur += line;
-        if (cur.trim()) out.push(cur.trim());
-        cur = '';
+/**
+ * Logical lines, as pip's preprocess makes them: a line ending in a backslash is joined to the
+ * next with the backslashes at both of its ends removed, unless it is a comment line; then a
+ * comment ("#" at the start or after white space) is removed from the joined line, so a comment
+ * continued by a backslash also removes the line after it.
+ */
+export function requirementLines(text) {
+    const body = text.replace(/^\ufeff/, '');
+    if (REQ_ODD_CHAR.test(body)) throw new LockfileError('requirements file: it has a control character, an unusual line break or an unusual space');
+    const joined = [];
+    let cur = null;
+    for (const line of body.split(/\r?\n/)) {
+        const comment = /^\s*#/.test(line);
+        if (line.endsWith('\\') && !comment) { cur = (cur ?? '') + line.replace(/^\\+|\\+$/g, ''); continue; }
+        joined.push((cur ?? '') + (comment ? ` ${line}` : line));
+        cur = null;
     }
-    if (cur.trim()) out.push(cur.trim());
+    if (cur !== null) joined.push(cur);
+    return joined.map((l) => l.replace(/(^|\s+)#.*$/, '').trim()).filter(Boolean);
+}
+
+// The options pip reads in a requirements file, spelled in full. pip also takes abbreviations
+// (--extra-index-u) and a few other options; a file with one of those is refused.
+const REQ_OPTIONS = new Map([
+    ['-i', 'index'], ['--index-url', 'index'], ['--extra-index-url', 'extra'], ['-f', 'extra'], ['--find-links', 'extra'],
+    ['--no-index', 'no-index'], ['-r', 'include'], ['--requirement', 'include'], ['-c', 'include'], ['--constraint', 'include'],
+    ['-e', 'editable'], ['--editable', 'editable'], ['--no-binary', 'other'], ['--only-binary', 'other'],
+    ['--trusted-host', 'other'], ['--use-feature', 'other'], ['--pre', 'flag'], ['--prefer-binary', 'flag'], ['--require-hashes', 'flag'],
+]);
+const REQ_FLAGS = new Set(['no-index', 'flag']);
+const REQ_OP = String.raw`(?:===?|~=|!=|<=?|>=?)\s*[^\s;,]+`;
+// name [extras] [version specifiers | @ url] [; marker]
+const REQ_ARGS = new RegExp(String.raw`^[A-Za-z0-9][A-Za-z0-9._-]*\s*(?:\[[^\]]*\])?\s*(?:${REQ_OP}(?:\s*,\s*${REQ_OP})*|@\s*\S+)?\s*(?:;.*)?$`);
+
+/** Options as [kind, value] pairs; null for anything else (pip splits these with shlex, so quotes and backslashes are refused). */
+function requirementOptions(text) {
+    if (/["'\\]/.test(text)) return null;
+    const tokens = text.split(/[ \t]+/).filter(Boolean);
+    const out = [];
+    for (let i = 0; i < tokens.length; i++) {
+        const eq = tokens[i].startsWith('--') ? tokens[i].indexOf('=') : -1;
+        const kind = REQ_OPTIONS.get(eq < 0 ? tokens[i] : tokens[i].slice(0, eq));
+        if (!kind) return null;
+        if (REQ_FLAGS.has(kind)) { if (eq >= 0) return null; out.push([kind, '']); continue; }
+        const value = eq < 0 ? tokens[++i] : tokens[i].slice(eq + 1);
+        if (!value) return null;
+        out.push([kind, value]);
+    }
     return out;
 }
 
-const REQ_OPTION = /^(-[a-zA-Z]|--[a-z][a-z-]*)(?=[\s=]|$)/;
-const REQ_OP = String.raw`(?:===?|~=|!=|<=?|>=?)\s*[^\s;,]+`;
-// name [extras] [version specifiers | @ url] [; marker] [--hash=...]...
-const REQ_LINE = new RegExp(String.raw`^[A-Za-z0-9][A-Za-z0-9._-]*\s*(?:\[[^\]]*\])?\s*(?:${REQ_OP}(?:\s*,\s*${REQ_OP})*|@\s*\S+)?\s*(?:;[^-]*(?:-(?!-hash)[^-]*)*)?(?:\s*--hash[=\s]\S+)*\s*$`);
-
-const isRequirementLine = (l) => REQ_OPTION.test(l) || REQ_LINE.test(l);
+/**
+ * One logical line: { options } for an option line, { requirement } for a requirement (its
+ * --hash options checked and dropped), or null when it is outside this grammar. As in pip, a
+ * line's options start at its first space-separated word that starts with "-".
+ */
+export function readRequirementLine(line) {
+    if (line.includes('\\')) return null;
+    const words = line.split(' ');
+    const at = words.findIndex((w) => w.startsWith('-'));
+    if (at === 0) {
+        const options = requirementOptions(line);
+        // pip ignores the other options of an editable line; reading them could make a file public.
+        if (!options || (options.length > 1 && options.some(([k]) => k === 'editable'))) return null;
+        return { options };
+    }
+    const requirement = (at < 0 ? words : words.slice(0, at)).join(' ');
+    if (!REQ_ARGS.test(requirement)) return null;
+    if (at > 0) {
+        const opts = words.slice(at).join(' ');
+        if (/["'\\]/.test(opts)) return null;
+        const tokens = opts.split(/[ \t]+/).filter(Boolean);
+        for (let i = 0; i < tokens.length; i++) {
+            if (/^--hash=\S/.test(tokens[i])) continue;
+            if (tokens[i] === '--hash' && tokens[i + 1]) { i++; continue; }
+            return null;
+        }
+    }
+    return { requirement };
+}
 
 function looksLikeRequirements(text) {
-    const lines = requirementLines(text);
-    return lines.length > 0 && lines.every(isRequirementLine);
+    try {
+        const lines = requirementLines(text);
+        return lines.length > 0 && lines.every((l) => readRequirementLine(l));
+    } catch { return false; }
 }
 
-/** Split an option line into [option, value]. */
-function optionOf(line) {
-    const m = line.match(/^(-[a-zA-Z]|--[a-z][a-z-]*)(?:\s*=\s*|\s+)?(.*)$/);
-    return [m[1], (m[2] || '').trim().split(/\s+/)[0] || ''];
-}
+const isPypiIndex = (url) => /^https:\/\/pypi\.org\/simple\/?$/.test(url);
 
 function parseRequirements(text) {
     const lines = requirementLines(text);
-    const indexes = []; let extra = false; let noIndex = false;
+    const indexes = []; let extra = false; let noIndex = false; let include = false; let envVar = false;
     const pins = []; const other = [];
     for (const [i, line] of lines.entries()) {
-        if (!isRequirementLine(line)) throw new LockfileError(`requirements file: requirement ${i + 1} is not in a form this tool reads (name, extras, version specifiers, @ URL, marker, hashes)`);
-        if (REQ_OPTION.test(line)) {
-            const [opt, val] = optionOf(line);
-            if (opt === '-i' || opt === '--index-url') indexes.push(val);
-            else if (opt === '--extra-index-url' || opt === '-f' || opt === '--find-links') extra = true;
-            else if (opt === '--no-index') noIndex = true;
-            else if (opt === '-e' || opt === '--editable') {
-                const name = (val.match(/[#&]egg=([A-Za-z0-9._-]+)/) || [])[1];
-                if (name) other.push({ name, origin: classifyOrigin(val, 'pypi') === 'git' ? 'git' : 'local', source: val });
+        const read = readRequirementLine(line);
+        if (!read) throw new LockfileError(`requirements file: requirement ${i + 1} is not in a form this tool reads (name, extras, version specifiers, @ URL, marker, hashes, or options spelled in full)`);
+        if (read.options) {
+            if (line.includes('${')) envVar = true;
+            for (const [kind, val] of read.options) {
+                if (kind === 'index') indexes.push(val);
+                else if (kind === 'extra') extra = true;
+                else if (kind === 'no-index') noIndex = true;
+                else if (kind === 'include') include = true;
+                else if (kind === 'editable') {
+                    const name = (val.match(/[#&]egg=([A-Za-z0-9._-]+)/) || [])[1];
+                    if (name) other.push({ name, origin: classifyOrigin(val, 'pypi') === 'git' ? 'git' : 'local', source: val });
+                }
             }
-            continue; // -r/-c includes and other options carry no package of this file
+            continue;
         }
-        const m = line.match(REQ_NAME);
-        if (!m) continue;
+        const m = read.requirement.match(REQ_NAME);
         const name = normPy(m[1]);
-        const rest = line.slice(m[0].length).replace(/;.*$/, '').replace(/--hash[=\s]\S+/g, '').trim();
+        const rest = read.requirement.slice(m[0].length).replace(/;.*$/, '').trim();
         if (rest.startsWith('@')) {
             const url = rest.slice(1).trim().split(/\s+/)[0];
             const o = classifyOrigin(url, 'pypi');
@@ -234,12 +300,14 @@ function parseRequirements(text) {
         if (pin && !pin[1].includes('*')) pins.push({ name, version: pin[1] });
         else other.push({ name, origin: 'range', spec: rest || 'any version' });
     }
-    let origin;
-    if (noIndex) origin = 'local';
-    else if (extra || indexes.length > 1) origin = 'private';
-    else if (indexes.length === 1) origin = classifyOrigin(indexes[0], 'pypi') === 'public' ? 'public' : 'private';
+    let origin; let source = null;
+    if (include || envVar) { origin = 'private'; source = include ? 'a -r or -c file, which is not read' : 'an option set from an environment variable'; }
+    else if (noIndex) origin = 'local';
+    else if (extra || indexes.length > 1 || (indexes.length === 1 && !isPypiIndex(indexes[0]))) {
+        origin = 'private';
+        source = indexes.find((u) => !isPypiIndex(u)) || 'an extra index or --find-links';
+    } else if (indexes.length === 1) { origin = 'public'; source = indexes[0]; }
     else origin = 'unknown';
-    const source = origin === 'private' || origin === 'public' ? (indexes[0] || 'an extra index or --find-links') : null;
     const map = new Map();
     for (const p of pins) addVer(map, p.name, p.version, { origin, source });
     // Unpinned and non-index entries are never looked up. They are keyed by their spec or cleaned
