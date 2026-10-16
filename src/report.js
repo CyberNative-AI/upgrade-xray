@@ -94,13 +94,28 @@ export function packageMarkdown(r, { heading = '###', maxFindings = 25 } = {}) {
 const ITEMS_SHOWN = 6;
 
 /**
+ * "New in <file>, <file>: …" names up to two files from the finding's own locations. They are
+ * package data, so they are taken out of the title and shown as code: a file named
+ * "www.example.com .py" or "&#64;victim.py" would otherwise render as a link.
+ */
+function namedFiles(f) {
+    const m = /^(New|Has) in /.exec(f.title);
+    if (!m) return null;
+    const files = [...new Set((f.locations || []).map((l) => l.file))].slice(0, 2);
+    const prefix = `${m[0]}${files.join(', ')}: `;
+    return files.length && f.title.startsWith(prefix) ? { files, title: `${m[1]}${f.title.slice(prefix.length - 2)}` } : null;
+}
+
+/**
  * Findings that differ only in what was matched become one line: "New: network access — fetch()"
  * and "New: network access — XMLHttpRequest()" in the same file are one finding to a reader.
  * Groups keep the order of their first finding; locations are merged without repeats.
  */
 export function groupFindings(findings) {
     const groups = new Map();
-    for (const f of findings) {
+    for (const finding of findings) {
+        const named = namedFiles(finding);
+        const f = named ? { ...finding, title: named.title } : finding;
         const art = f.artifact || '';
         let key; let label; let item = null; let extra = '';
         if (f.kind === 'new-dependency' && f.dependency) {
@@ -124,8 +139,9 @@ export function groupFindings(findings) {
             if (f.detail && !f.title.includes(f.detail) && f.kind !== 'install-script-capability') extra = f.detail;
             key = `${f.severity}|${f.kind}|${label}|${extra}|${art}|${groups.size}`;
         }
+        if (named) key += `|${named.files.join('\u0000')}`;
         let g = groups.get(key);
-        if (!g) groups.set(key, (g = { severity: f.severity, label, items: [], extra, artifact: art, locations: [], more: false }));
+        if (!g) groups.set(key, (g = { severity: f.severity, label, files: named?.files, items: [], extra, artifact: art, locations: [], more: false }));
         if (item && !g.items.some((x) => x.toLowerCase() === item.toLowerCase())) g.items.push(item);
         for (const l of f.locations || []) { const s = loc(l); if (!g.locations.includes(s)) g.locations.push(s); }
         if (f.moreLocations) g.more = true;
@@ -136,6 +152,7 @@ export function groupFindings(findings) {
 function groupLine(g, { where = true } = {}) {
     const many = g.items.length > 1;
     let label = text(g.label);
+    if (g.files) label = label.replace(/^(New|Has)/, (head) => `${head} in ${g.files.map(code).join(', ')}`);
     if (many && /^New (optional \(extra\) )?dependency$/.test(g.label)) label = `${label.replace(/dependency$/, 'dependencies')} (${g.items.length})`;
     const shown = g.items.slice(0, ITEMS_SHOWN).join(', ');
     const total = Math.max(g.items.length, g.total || 0);

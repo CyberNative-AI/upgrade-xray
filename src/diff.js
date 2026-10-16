@@ -98,7 +98,8 @@ export function diffSnapshots(old, neu, { addedPackage = false } = {}) {
         // Only in tests, examples or docs: shipped but not run on install or import. One level lower.
         const inertOnly = g.locations.every((l) => INERT_DIR.test(l.file) && !neu.installFiles.has(l.file));
         if (inertOnly) severity = LOWER[severity];
-        add({ severity, category: 'security', kind: g.kind, title: `${old ? 'New' : 'Has'}${g.inFile ? ` in ${[...new Set(g.locations.map((l) => l.file))].slice(0, 2).join(', ')}` : ''}: ${lower(label)} — ${g.detail}${importLaunch(g) && !/ at import time$/.test(g.detail) ? ' (in a package __init__, runs on import)' : ''}${inertOnly ? ' (only in tests/examples/docs)' : ''}`, detail: g.detail, locations: g.locations.slice(0, MAX_LOCATIONS), moreLocations: Math.max(0, g.locations.length - MAX_LOCATIONS) });
+        // The files named in the title come from the locations kept, so the report can show them as code.
+        add({ severity, category: 'security', kind: g.kind, title: `${old ? 'New' : 'Has'}${g.inFile ? ` in ${[...new Set(g.locations.slice(0, MAX_LOCATIONS).map((l) => l.file))].slice(0, 2).join(', ')}` : ''}: ${lower(label)} — ${g.detail}${importLaunch(g) && !/ at import time$/.test(g.detail) ? ' (in a package __init__, runs on import)' : ''}${inertOnly ? ' (only in tests/examples/docs)' : ''}`, detail: g.detail, locations: g.locations.slice(0, MAX_LOCATIONS), moreLocations: Math.max(0, g.locations.length - MAX_LOCATIONS) });
     }
     if (newHosts.length) {
         add({ severity: old ? 'low' : 'info', category: 'security', kind: 'new-host', title: `${newHosts.length} new hard-coded host name(s)`, detail: newHosts.map((h) => h.detail).slice(0, 15).join(', '), locations: newHosts.slice(0, MAX_LOCATIONS).map((h) => h.locations[0]) });
