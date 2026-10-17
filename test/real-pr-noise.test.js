@@ -85,3 +85,37 @@ test('a long array that is mostly not strings is not a list of names', async () 
     const r = await diff([['lib/m.js', 'module.exports = [];\n']], [['lib/m.js', mixed]]);
     assert.equal(sec(r, 'exfil-endpoint')[0].severity, 'high');
 });
+
+// A platform package (@rollup/rollup-linux-x64-gnu) ships one native addon; added to a lockfile, it read "review".
+const elf = Buffer.concat([Buffer.from([0x7f, 0x45, 0x4c, 0x46, 2, 1, 1, 0]), Buffer.alloc(64)]);
+const withBin = (p) => new Map([['package.json', pkg()], ['index.js', Buffer.from('module.exports = 1;')], [p, elf]]);
+
+test('a Node addon (.node) is native code, not a new executable', async () => {
+    const r = diffSnapshots(await npmSnapshot(files([])), await npmSnapshot(withBin('rollup.linux-x64-gnu.node')));
+    assert.equal(sec(r, 'binary-executable').length, 0, JSON.stringify(r.findings));
+    assert.equal(sec(r, 'native-code')[0].severity, 'medium');
+    const added = diffSnapshots(null, await npmSnapshot(withBin('rollup.linux-x64-gnu.node')), { addedPackage: true });
+    assert.notEqual(added.verdict, 'review', JSON.stringify(added.findings));
+});
+
+test('a new .wasm, or a .so/.dll that is not an executable image, is still reported as native code', async () => {
+    for (const [p, bytes] of [['lib/x.wasm', Buffer.concat([Buffer.from([0, 0x61, 0x73, 0x6d, 1, 0, 0, 0]), Buffer.alloc(32)])], ['lib/x.so', Buffer.alloc(64, 1)], ['lib/x.dll', Buffer.alloc(64, 1)]]) {
+        const r = diffSnapshots(await npmSnapshot(files([])), await npmSnapshot(new Map([['package.json', pkg()], ['index.js', Buffer.from('module.exports = 1;')], [p, bytes]])));
+        assert.equal(sec(r, 'native-code')[0]?.severity, 'medium', p);
+    }
+});
+
+test('a .dll/.so/.dylib or any other ELF/PE/Mach-O file is still a high "new executable"', async () => {
+    // Shaped like the 2025 eslint-config-prettier compromise: node-gyp.dll, an install script runs it.
+    const pe = Buffer.concat([Buffer.from('MZ'), Buffer.alloc(64)]);
+    const scav = new Map([['package.json', pkg({ scripts: { install: 'node install.js' } })], ['index.js', Buffer.from('module.exports = 1;')],
+        ['install.js', Buffer.from("require('child_process').spawn('rundll32', [__dirname + '/node-gyp.dll,main']);")], ['node-gyp.dll', pe]]);
+    const s = diffSnapshots(await npmSnapshot(files([])), await npmSnapshot(scav));
+    assert.ok(s.findings.some((f) => f.kind === 'binary-executable' && f.severity === 'high'), JSON.stringify(s.findings));
+    for (const p of ['bin/tool', 'lib/addon.so', 'lib/libx.dylib', 'lib/addon.node.bak', 'x.so.1']) {
+        const r = diffSnapshots(await npmSnapshot(files([])), await npmSnapshot(withBin(p)));
+        assert.equal(sec(r, 'binary-executable')[0]?.severity, 'high', p);
+        const added = diffSnapshots(null, await npmSnapshot(withBin(p)), { addedPackage: true });
+        assert.equal(added.verdict, 'review', p);
+    }
+});

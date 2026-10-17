@@ -210,9 +210,14 @@ export async function npmSnapshot(files) {
         const h = sha(buf);
         snap.files.set(p, { size: buf.oversize || buf.length, hash: h });
         if (skipUnread(snap, p, buf)) continue;
+        // A Node addon (.node) is an ELF/PE/Mach-O file too, but Node only loads it with require(), so
+        // it is native code, not a new executable. Platform packages (@rollup/rollup-linux-x64-gnu) ship
+        // one each. A .dll, .so or .dylib stays a new executable: the 2025 eslint-config-prettier
+        // compromise shipped its payload as node-gyp.dll and ran it from an install script.
+        if (/\.node$/i.test(p)) { snap.signals.push({ kind: 'native-code', detail: '.node', file: p, line: 0 }); continue; }
         const bk = binaryKind(buf);
         if (bk) { snap.signals.push({ kind: 'binary-executable', detail: bk, file: p, line: 0 }); continue; }
-        if (/\.(node|so|dll|dylib|wasm)$/i.test(p)) { snap.signals.push({ kind: 'native-code', detail: path.extname(p).toLowerCase(), file: p, line: 0 }); continue; }
+        if (/\.(so|dll|dylib|wasm)$/i.test(p)) { snap.signals.push({ kind: 'native-code', detail: path.extname(p).toLowerCase(), file: p, line: 0 }); continue; }
         if (/\.d\.(c|m)?ts$/.test(p)) { dtsScans.set(p, scanDts(buf.toString('utf8'))); continue; }
         if (SKIP_DIR.test(p) && !snap.installFiles.has(p)) continue;
         if (JS_EXT.test(p) || binFiles.has(p) || snap.installFiles.has(p) || (isText(buf) && buf.toString('latin1', 0, 30).startsWith('#!/usr/bin/env node'))) {
