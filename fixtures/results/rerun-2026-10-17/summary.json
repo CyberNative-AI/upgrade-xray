@@ -103,8 +103,8 @@
    "binary-executable": 1
   },
   "misses": [
-   "npm:@rxap/ngx-bootstrap 19.0.2->19.0.4 (clean)",
-   "npm:@rxap/ngx-bootstrap 19.0.2->19.0.3 (clean)"
+   "npm:@rxap/ngx-bootstrap 19.0.2->19.0.3 (clean)",
+   "npm:@rxap/ngx-bootstrap 19.0.2->19.0.4 (clean)"
   ],
   "benign": {
    "n": 50,
