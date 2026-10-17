@@ -250,10 +250,23 @@ export async function npmSnapshot(files) {
 
 function normPy(n) { return n.toLowerCase().replace(/[-_.]+/g, '-'); }
 
+// Reads a dependency string as /^\s*(name)\s*(\[[^\]]*\])?\s*(.*)$/ does, in linear time:
+// [whole match, name, extras, rest]. That regex fails only when the rest holds a line break,
+// which `.` does not match, and its adjacent \s* first try every way of sharing a run of white
+// space: cubic in the run's length. Giving a character back never moves a line break out of the
+// rest, so reading greedily and then checking the rest gives the same answer.
+const SPEC_HEAD = /^\s*([A-Za-z0-9][A-Za-z0-9._-]*)\s*(\[[^\]]*\])?\s*/;
+function readSpec(s) {
+    const m = s.match(SPEC_HEAD);
+    if (!m) return null;
+    const rest = s.slice(m[0].length);
+    return /[\n\r\u2028\u2029]/.test(rest) ? null : [s, m[1], m[2], rest];
+}
+
 function parseRequiresDist(text) {
     const deps = {};
     for (const line of text.split('\n')) {
-        const m = line.match(/^Requires-Dist:\s*([A-Za-z0-9][A-Za-z0-9._-]*)\s*(\[[^\]]*\])?\s*(.*)$/);
+        const m = line.startsWith('Requires-Dist:') ? readSpec(line.slice('Requires-Dist:'.length)) : null;
         if (m) {
             const extra = /extra\s*==/.test(m[3]);
             const k = normPy(m[1]);
@@ -266,7 +279,7 @@ function parseRequiresDist(text) {
 function pyDepsFromSpecList(list, field = 'requires') {
     const deps = {};
     for (const s of list || []) {
-        const m = String(s).match(/^\s*([A-Za-z0-9][A-Za-z0-9._-]*)\s*(\[[^\]]*\])?\s*(.*)$/);
+        const m = readSpec(String(s));
         if (m) deps[normPy(m[1])] = { spec: m[3].trim(), field };
     }
     return deps;
@@ -289,7 +302,9 @@ export async function pypiSnapshot(files, kind) {
         if (/\.(so|pyd|dll|dylib|wasm)$/i.test(p) || /\.so\.\d/.test(p)) { snap.signals.push({ kind: 'native-code', detail: path.extname(p).toLowerCase(), file: p, line: 0 }); continue; }
         if (/\.pth$/i.test(p) && !p.includes('/')) {
             const t = buf.toString('utf8');
-            if (/^\s*import[\s;]/m.test(t)) {
+            // Leading white space without line breaks: with /m every position of a run of blank
+            // lines starts a line, and \s* re-read the rest of the run from each one.
+            if (/^[^\S\n\r\u2028\u2029]*import[\s;]/m.test(t)) {
                 snap.signals.push({ kind: 'startup-hook', detail: `${p} (runs at every Python start-up)`, file: p, line: 0 });
                 pyFiles.push({ path: p, source: t.split('\n').filter((l) => /^\s*import[\s;]/.test(l)).join('\n'), hash: sha(buf) });
                 snap.installFiles.add(p);
@@ -309,7 +324,11 @@ export async function pypiSnapshot(files, kind) {
             snap.installFiles.add('setup.py');
             const t = files.get('setup.py').toString('utf8');
             if (/cmdclass\s*=/.test(t)) snap.installScripts['setup.py cmdclass'] = (t.match(/cmdclass\s*=\s*([^\n]{0,120})/) || [])[1] || 'custom commands';
-            const cls = [...t.matchAll(/class\s+(\w+)\s*\(\s*([\w.]*(install|develop|egg_info|build_py|build_ext|sdist|bdist_wheel)\w*)\s*\)/g)].map((m) => `${m[1]}(${m[2]})`);
+            // A command name anywhere in the base's last dotted part. One regex for both retried
+            // the names at every character of a long base.
+            const cls = [...t.matchAll(/class\s+(\w+)\s*\(\s*([\w.]*)\s*\)/g)]
+                .filter((m) => /install|develop|egg_info|build_py|build_ext|sdist|bdist_wheel/.test(m[2].slice(m[2].lastIndexOf('.') + 1)))
+                .map((m) => `${m[1]}(${m[2]})`);
             if (cls.length) snap.installScripts['setup.py command classes'] = cls.sort().join(', ');
         }
         const bs = pyproject?.['build-system'];
@@ -336,8 +355,13 @@ export async function pypiSnapshot(files, kind) {
         for (const [k, v] of Object.entries(pyproject.tool.poetry.dependencies)) if (k !== 'python') snap.deps[normPy(k)] = { spec: typeof v === 'string' ? v : JSON.stringify(v), field: 'requires' };
     }
     if (!Object.keys(snap.deps).length && files.has('setup.py')) {
-        const m = files.get('setup.py').toString('utf8').match(/install_requires\s*=\s*\[([^\]]*)\]/);
-        if (m) snap.deps = pyDepsFromSpecList([...m[1].matchAll(/['"]([^'"]+)['"]/g)].map((x) => x[1]));
+        // The list after the first `install_requires = [` up to the next "]"; with no "]" after
+        // it there is none after any later one. A single regex scanned to the end of the file
+        // from every one of them.
+        const t = files.get('setup.py').toString('utf8');
+        const open = t.match(/install_requires\s*=\s*\[/);
+        const close = open ? t.indexOf(']', open.index + open[0].length) : -1;
+        if (close >= 0) snap.deps = pyDepsFromSpecList([...t.slice(open.index + open[0].length, close).matchAll(/['"]([^'"]+)['"]/g)].map((x) => x[1]));
     }
     // Public API: modules inside importable packages
     const modules = new Map(); // dotted -> path

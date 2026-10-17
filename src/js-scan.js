@@ -340,10 +340,14 @@ export function scanDts(src) {
     const names = new Set();
     const reexports = [];
     const body = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
-    for (const m of body.matchAll(/^\s*export\s+(?:declare\s+)?(?:default\s+)?(?:abstract\s+)?(?:async\s+)?(function\*?|class|const|let|var|interface|type|enum|namespace|module)\s+([A-Za-z_$][\w$]*)/gm)) names.add(m[2]);
-    if (/^\s*export\s+default\b/m.test(body)) names.add('default');
+    // `^` then white space without line breaks: with /m every position of a run of blank lines
+    // starts a line, and \s* re-read the rest of the run from each one.
+    for (const m of body.matchAll(/^[^\S\n\r\u2028\u2029]*export\s+(?:declare\s+)?(?:default\s+)?(?:abstract\s+)?(?:async\s+)?(function\*?|class|const|let|var|interface|type|enum|namespace|module)\s+([A-Za-z_$][\w$]*)/gm)) names.add(m[2]);
+    if (/^[^\S\n\r\u2028\u2029]*export\s+default\b/m.test(body)) names.add('default');
     for (const m of body.matchAll(/export\s+(type\s+)?\{([^}]*)\}\s*(?:from\s*['"]([^'"]+)['"])?/g)) {
-        const list = m[2].split(',').map((x) => x.trim()).filter(Boolean).map((x) => x.replace(/^type\s+/, '').split(/\s+as\s+/).pop().trim());
+        // (?<!\s): a separator starts only where its white space starts, as the first match always
+        // does; otherwise each position of a long run is tried and fails after reading the rest.
+        const list = m[2].split(',').map((x) => x.trim()).filter(Boolean).map((x) => x.replace(/^type\s+/, '').split(/(?<!\s)\s+as\s+/).pop().trim());
         if (m[3]) reexports.push({ from: m[3], names: list });
         else list.forEach((n) => names.add(n));
     }

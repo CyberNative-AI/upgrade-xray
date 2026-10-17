@@ -20,7 +20,10 @@ export function parsePackageSpec(s, defaultEcosystem = 'npm') {
         if (at > 0) { name = t.slice(0, at); range = t.slice(at + 1); }
     }
     let from; let to;
-    const r = range.split(/\s*(?:\.\.|->|→)\s*/);
+    // range.split(/\s*(?:\.\.|->|→)\s*/): the white space next to a separator goes with it. That
+    // regex retried at every position of a long run of white space.
+    const r = range.split(/\.\.|->|→/)
+        .map((p, i, all) => { const q = i > 0 ? p.trimStart() : p; return i < all.length - 1 ? q.trimEnd() : q; });
     if (r.length === 2) [from, to] = r; else to = r[0] || undefined;
     if (!name || /\s/.test(name.trim())) throw new Error(`cannot read package spec "${s}"`);
     return { ecosystem, name: name.trim(), from: from || undefined, to: to || undefined };

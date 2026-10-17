@@ -90,15 +90,23 @@ function parseNpm(text) {
     return map;
 }
 
+// s.replace(/<ch>.*$/, ''), without the retry at every <ch> that a line break follows: `.` stops
+// at a line break, so only a <ch> after the last one can start the match.
+function cutFrom(s, ch) {
+    const lastBreak = Math.max(s.lastIndexOf('\n'), s.lastIndexOf('\r'), s.lastIndexOf('\u2028'), s.lastIndexOf('\u2029'));
+    const i = s.indexOf(ch, lastBreak + 1);
+    return i < 0 ? s : s.slice(0, i);
+}
+
 function parsePnpmKey(key) {
     let k = key.replace(/^\//, '');
-    k = k.replace(/\(.*$/, ''); // v6+/v9 peer suffix
+    k = cutFrom(k, '('); // v6+/v9 peer suffix
     // v5: /name/1.2.3_peer
     const v5 = k.match(/^((?:@[^/]+\/)?[^/@]+)\/(\d[^/_]*)(?:_.*)?$/);
     if (v5) return [v5[1], v5[2]];
     const at = k.lastIndexOf('@');
     if (at <= 0) return [null, null];
-    return [k.slice(0, at), k.slice(at + 1).replace(/_.*$/, '')];
+    return [k.slice(0, at), cutFrom(k.slice(at + 1), '_')];
 }
 
 /** Every document of a YAML stream, as plain data. Throws on the first syntax error. */
