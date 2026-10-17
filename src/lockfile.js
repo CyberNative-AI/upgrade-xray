@@ -360,11 +360,17 @@ const REQ_NAME = /^([A-Za-z0-9][A-Za-z0-9._-]*)\s*(\[[^\]]*\])?\s*/;
 // JavaScript split and trim these differently.
 const REQ_ODD_CHAR = /[\0-\x08\x0b\x0c\x0e-\x1f\x7f\x85\xa0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]|\r(?!\n)/;
 
+// A physical line longer than this is refused before any pattern reads it. pip-compile writes
+// lines of a few hundred characters at most: a requirement with many hashes is continued over
+// many short lines.
+const REQ_MAX_LINE = 16384;
+
 /**
  * Logical lines, as pip's preprocess makes them: a line ending in a backslash is joined to the
  * next with the backslashes at both of its ends removed, unless it is a comment line; then a
  * comment ("#" at the start or after white space) is removed from the joined line, so a comment
- * continued by a backslash also removes the line after it.
+ * continued by a backslash also removes the line after it. Every step is linear in the line's
+ * length: a joined line can be as long as the file.
  */
 export function requirementLines(text) {
     const body = text.replace(/^\ufeff/, '');
@@ -372,13 +378,34 @@ export function requirementLines(text) {
     const joined = [];
     let cur = null;
     for (const line of body.split(/\r?\n/)) {
+        if (line.length > REQ_MAX_LINE) throw new LockfileError(`requirements file: it has a line longer than ${REQ_MAX_LINE} characters`);
         const comment = /^\s*#/.test(line);
-        if (line.endsWith('\\') && !comment) { cur = (cur ?? '') + line.replace(/^\\+|\\+$/g, ''); continue; }
+        if (line.endsWith('\\') && !comment) { cur = (cur ?? '') + trimBackslashes(line); continue; }
         joined.push((cur ?? '') + (comment ? ` ${line}` : line));
         cur = null;
     }
     if (cur !== null) joined.push(cur);
-    return joined.map((l) => l.replace(/(^|\s+)#.*$/, '').trim()).filter(Boolean);
+    return joined.map((l) => removeComment(l).trim()).filter(Boolean);
+}
+
+// line.replace(/^\\+|\\+$/g, ''), without the retry at every backslash of a run inside the line.
+function trimBackslashes(line) {
+    let a = 0; let b = line.length;
+    while (a < b && line[a] === '\\') a++;
+    while (b > a && line[b - 1] === '\\') b--;
+    return line.slice(a, b);
+}
+
+// line.replace(/(^|\s+)#.*$/, ''), which retries at every space of a run: the first "#" at the
+// start of the line or after white space ends it, with that white space.
+function removeComment(line) {
+    for (let i = line.indexOf('#'); i >= 0; i = line.indexOf('#', i + 1)) {
+        if (i === 0) return '';
+        let j = i;
+        while (j > 0 && /\s/.test(line[j - 1])) j--;
+        if (j < i) return line.slice(0, j);
+    }
+    return line;
 }
 
 // The options pip reads in a requirements file, spelled in full. pip also takes abbreviations
@@ -427,7 +454,9 @@ export function readRequirementLine(line) {
         return { options };
     }
     const requirement = (at < 0 ? words : words.slice(0, at)).join(' ');
-    if (!REQ_ARGS.test(requirement)) return null;
+    // REQ_ARGS reads a run of white space the same as one space. Its adjacent \s* would otherwise
+    // try every way of sharing a long run between them.
+    if (!REQ_ARGS.test(requirement.replace(/\s+/g, ' '))) return null;
     if (at > 0) {
         const opts = words.slice(at).join(' ');
         if (/["'\\]/.test(opts)) return null;

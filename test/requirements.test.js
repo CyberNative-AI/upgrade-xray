@@ -132,6 +132,8 @@ test('requirements: comments and continuations are joined and removed as pip doe
     assert.deepEqual(names('# note \\\nflask==2.0\n'), ['flask']);
     assert.deepEqual(names('django==1.\\\n0\n'), ['django']);
     assert.equal([...parseLockfile('django==1.\\\n0\n', 'requirements.txt').packages.get('django').keys()][0], '1.0');
+    // pip removes the backslashes at both ends of a continued line (pip 24: "django==1.0.1").
+    assert.equal([...parseLockfile('django==1.\\\n\\0.\\\n1\n', 'requirements.txt').packages.get('django').keys()][0], '1.0.1');
     // A backslash followed by a space does not continue in pip; the stray backslash refuses the file.
     assert.throws(() => names('django==1.0 \\ \nflask==2.0\n'), /not in a form this tool reads/);
     for (const t of ['django==1.0\rflask==2.0\n', 'django==1.0\u2028flask==2.0\n', 'django==1.0\x0bflask==2.0\n', 'django==1.0\u00a0#x\n',
@@ -152,4 +154,17 @@ test('requirements: text that is not a requirements file is refused, not half-re
     const io = memoryIo();
     await runInput({ lockfileBefore: 'hello world\n', lockfileAfter: 'hello there\n', concurrency: 1 }, io);
     assert.match(String(io.failed), /could not recognise the lockfile format/);
+});
+
+test('requirements: long space runs are read in linear time, and a line over 16384 characters is refused', () => {
+    // A space run that does not end in "#": the comment pattern retried at every space of it.
+    const run = ' '.repeat(16000);
+    const text = Array.from({ length: 64 }, (_, i) => `p${i}==1${run}; os_name == "posix"`).join('\n');
+    const t0 = performance.now();
+    assert.equal(parseLockfile(text, 'requirements.txt').packages.size, 64);
+    assert.ok(performance.now() - t0 < 2000, `64 lines took ${Math.round(performance.now() - t0)} ms`);
+    assert.throws(() => parseLockfile(`p==1${' '.repeat(65536)}; os_name == "posix"\n`, 'requirements.txt'), /longer than 16384 characters/);
+    // A requirement with many hashes is many short lines joined into one long line; it is still read.
+    const hashes = Array.from({ length: 300 }, (_, i) => `    --hash=sha256:${String(i).padStart(64, '0')}`).join(' \\\n');
+    assert.deepEqual([...parseLockfile(`numpy==2.0.0 \\\n${hashes}\n`, 'requirements.txt').packages.get('numpy').keys()], ['2.0.0']);
 });
