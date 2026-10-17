@@ -16,9 +16,11 @@ function groupSignals(snap) {
     const m = new Map();
     for (const s of snap.signals) {
         const key = `${s.kind}\u0000${s.detail}`;
-        if (!m.has(key)) m.set(key, { kind: s.kind, detail: s.detail, locations: [] });
+        if (!m.has(key)) m.set(key, { kind: s.kind, detail: s.detail, locations: [], listOnly: true });
         const g = m.get(key);
         if (g.locations.length < 50) g.locations.push({ file: s.file, line: s.line, ...(s.list ? { list: s.list } : {}) });
+        // Read from every occurrence, not only the locations kept for the report.
+        if (!s.list || snap.installFiles.has(s.file)) g.listOnly = false;
     }
     return m;
 }
@@ -106,8 +108,9 @@ export function diffSnapshots(old, neu, { addedPackage = false } = {}) {
         const inertOnly = g.locations.every((l) => INERT_DIR.test(l.file) && !neu.installFiles.has(l.file));
         if (inertOnly) severity = LOWER[severity];
         // A tunnel or paste-site name that only appears as one entry of a long list of names (a
-        // public suffix list) is data. Still shown, at low, so a reviewer can check the list.
-        const listOnly = g.kind === 'exfil-endpoint' && g.locations.every((l) => l.list && !neu.installFiles.has(l.file));
+        // public suffix list) is data. Still shown, at low, so a reviewer can check the list. Every
+        // occurrence in the new version counts, in any file: one ordinary use keeps it high.
+        const listOnly = g.kind === 'exfil-endpoint' && after.get(`${g.kind}\u0000${g.detail}`).listOnly;
         if (listOnly && SEVERITY_RANK[severity] > SEVERITY_RANK.low) severity = 'low';
         // The files named in the title come from the locations kept, so the report can show them as code.
         add({ severity, category: 'security', kind: g.kind, title: `${old ? 'New' : 'Has'}${g.inFile ? ` in ${[...new Set(g.locations.slice(0, MAX_LOCATIONS).map((l) => l.file))].slice(0, 2).map(v).join(', ')}` : ''}: ${kindLabel(g.kind)} — ${v(g.detail)}${importLaunch(g) && !/ at import time$/.test(g.detail) ? ' (in a package __init__, runs on import)' : ''}${inertOnly ? ' (only in tests/examples/docs)' : ''}${listOnly ? ' (only as an entry in a long list of names)' : ''}`, detail: g.detail, locations: g.locations.slice(0, MAX_LOCATIONS), moreLocations: Math.max(0, g.locations.length - MAX_LOCATIONS) });

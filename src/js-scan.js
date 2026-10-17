@@ -38,17 +38,25 @@ export function stripTypes(src) {
     return null;
 }
 
-// An array literal of at least this many entries, nearly all strings, is data (a public
+// An array literal of at least this many entries, nearly all bare host names, is data (a public
 // suffix list, a list of disposable mail domains), not an address the code sends to.
 export const NAME_LIST_MIN = 100;
 const listSizes = new WeakMap();
 
-/** Entry count when `node` is a long array of string literals, else 0. */
+// A bare host or public-suffix name ("ngrok.io", "*.ck", "!www.ck"): no scheme, port, path or
+// credentials. A full URL in a list is an address, whatever the list looks like. IPv4 addresses
+// are not names.
+const LABEL = String.raw`[\p{L}\p{N}_][\p{L}\p{M}\p{N}_-]{0,62}`;
+const HOST_NAME = new RegExp(String.raw`^!?(?:\*\.)?${LABEL}(?:\.${LABEL})*\.?$`, 'u');
+export const isHostName = (s) => s.length <= 253 && HOST_NAME.test(s) && !/^[\d.]+$/.test(s);
+const nameLiteral = (e) => e && e.type === 'Literal' && typeof e.value === 'string' && isHostName(e.value);
+
+/** Entry count when `node` is a long array of host-name literals, else 0. */
 function listSize(node) {
     if (!node || node.type !== 'ArrayExpression' || node.elements.length < NAME_LIST_MIN) return 0;
     if (!listSizes.has(node)) {
-        const strings = node.elements.filter((e) => e && e.type === 'Literal' && typeof e.value === 'string').length;
-        listSizes.set(node, strings >= 0.9 * node.elements.length ? node.elements.length : 0);
+        const names = node.elements.filter(nameLiteral).length;
+        listSizes.set(node, names >= 0.9 * node.elements.length ? node.elements.length : 0);
     }
     return listSizes.get(node);
 }
@@ -140,7 +148,7 @@ export function scanJs(src, { wantExports = false, typescript = false } = {}) {
                 if (/^_0x[0-9a-f]{3,}$/i.test(node.name)) obfuscatedIds++;
                 break;
             case 'Literal':
-                if (typeof node.value === 'string') onString(node.value, line, listSize(ancestors[ancestors.length - 2]));
+                if (typeof node.value === 'string') onString(node.value, line, isHostName(node.value) ? listSize(ancestors[ancestors.length - 2]) : 0);
                 break;
             case 'TemplateElement':
                 if (node.value.cooked) onString(node.value.cooked, line);
