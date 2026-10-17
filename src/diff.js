@@ -18,7 +18,7 @@ function groupSignals(snap) {
         const key = `${s.kind}\u0000${s.detail}`;
         if (!m.has(key)) m.set(key, { kind: s.kind, detail: s.detail, locations: [] });
         const g = m.get(key);
-        if (g.locations.length < 50) g.locations.push({ file: s.file, line: s.line });
+        if (g.locations.length < 50) g.locations.push({ file: s.file, line: s.line, ...(s.list ? { list: s.list } : {}) });
     }
     return m;
 }
@@ -92,7 +92,7 @@ export function diffSnapshots(old, neu, { addedPackage = false } = {}) {
         if (!before.has(key) || !(PER_FILE_KINDS.has(s.kind) || importLaunch({ ...s, locations: [s] })) || /^module /.test(s.detail)) continue;
         if (!changed(s.file) || fileOld.has(`${s.file}\u0000${key}`)) continue;
         if (!gained.has(key)) gained.set(key, { kind: s.kind, detail: s.detail, locations: [], inFile: true });
-        if (gained.get(key).locations.length < 50) gained.get(key).locations.push({ file: s.file, line: s.line });
+        if (gained.get(key).locations.length < 50) gained.get(key).locations.push({ file: s.file, line: s.line, ...(s.list ? { list: s.list } : {}) });
     }
     const gainedInFile = [...gained.values()];
     for (const g of [...[...after].filter(([key]) => !before.has(key)).map(([, v]) => v), ...gainedInFile]) {
@@ -105,8 +105,12 @@ export function diffSnapshots(old, neu, { addedPackage = false } = {}) {
         // Only in tests, examples or docs: shipped but not run on install or import. One level lower.
         const inertOnly = g.locations.every((l) => INERT_DIR.test(l.file) && !neu.installFiles.has(l.file));
         if (inertOnly) severity = LOWER[severity];
+        // A tunnel or paste-site name that only appears as one entry of a long list of names (a
+        // public suffix list) is data. Still shown, at low, so a reviewer can check the list.
+        const listOnly = g.kind === 'exfil-endpoint' && g.locations.every((l) => l.list && !neu.installFiles.has(l.file));
+        if (listOnly && SEVERITY_RANK[severity] > SEVERITY_RANK.low) severity = 'low';
         // The files named in the title come from the locations kept, so the report can show them as code.
-        add({ severity, category: 'security', kind: g.kind, title: `${old ? 'New' : 'Has'}${g.inFile ? ` in ${[...new Set(g.locations.slice(0, MAX_LOCATIONS).map((l) => l.file))].slice(0, 2).map(v).join(', ')}` : ''}: ${kindLabel(g.kind)} — ${v(g.detail)}${importLaunch(g) && !/ at import time$/.test(g.detail) ? ' (in a package __init__, runs on import)' : ''}${inertOnly ? ' (only in tests/examples/docs)' : ''}`, detail: g.detail, locations: g.locations.slice(0, MAX_LOCATIONS), moreLocations: Math.max(0, g.locations.length - MAX_LOCATIONS) });
+        add({ severity, category: 'security', kind: g.kind, title: `${old ? 'New' : 'Has'}${g.inFile ? ` in ${[...new Set(g.locations.slice(0, MAX_LOCATIONS).map((l) => l.file))].slice(0, 2).map(v).join(', ')}` : ''}: ${kindLabel(g.kind)} — ${v(g.detail)}${importLaunch(g) && !/ at import time$/.test(g.detail) ? ' (in a package __init__, runs on import)' : ''}${inertOnly ? ' (only in tests/examples/docs)' : ''}${listOnly ? ' (only as an entry in a long list of names)' : ''}`, detail: g.detail, locations: g.locations.slice(0, MAX_LOCATIONS), moreLocations: Math.max(0, g.locations.length - MAX_LOCATIONS) });
     }
     if (newHosts.length) {
         add({ severity: old ? 'low' : 'info', category: 'security', kind: 'new-host', title: `${newHosts.length} new hard-coded host name(s)`, detail: newHosts.map((h) => h.detail).slice(0, 15).join(', '), locations: newHosts.slice(0, MAX_LOCATIONS).map((h) => h.locations[0]) });

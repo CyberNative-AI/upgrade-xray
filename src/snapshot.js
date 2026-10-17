@@ -218,7 +218,8 @@ export async function npmSnapshot(files) {
         if (JS_EXT.test(p) || binFiles.has(p) || snap.installFiles.has(p) || (isText(buf) && buf.toString('latin1', 0, 30).startsWith('#!/usr/bin/env node'))) {
             if (!isText(buf)) continue;
             const text = buf.toString('utf8');
-            const r = scanJsCached(h, text, { wantExports: true });
+            const typescript = /\.(c|m)?ts$/i.test(p);
+            const r = scanJsCached(typescript ? `${h}:ts` : h, text, { wantExports: true, typescript });
             jsScans.set(p, r);
             if (!r.parsed) gap(snap, 'unparsedFiles', p, r.error ? `not parsed (${String(r.error).slice(0, 80)}); pattern scan only` : /\.(c|m)?tsx?$/i.test(p) ? 'TypeScript source; pattern scan only' : text.length > JS_AST_LIMIT ? 'above the 6 MB parser limit; pattern scan only' : 'not parsed; pattern scan only');
             addSignals(snap, p, r.signals);

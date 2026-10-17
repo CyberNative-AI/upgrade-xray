@@ -85,14 +85,14 @@ test('files only pattern-scanned are listed before "nothing new found"', async (
     const files = (src) => new Map([
         ['package.json', Buffer.from('{"name":"t","version":"1.0.0","main":"index.js"}')],
         ['index.js', Buffer.from('module.exports = 1;')],
-        ['lib/types.ts', Buffer.from('export const x: number = 1;')],
+        ['lib/view.tsx', Buffer.from('export const x = <b>{1}</b>;')],
         ['lib/broken.js', Buffer.from(src)],
     ]);
     const r = diffSnapshots(await npmSnapshot(files('function (')), await npmSnapshot(files('function ( {')));
     assert.equal(r.verdict, 'clean');
     assert.equal(r.coverage.complete, false);
-    assert.deepEqual(r.coverage.unparsedFiles.map((f) => f.file).sort(), ['lib/broken.js', 'lib/types.ts']);
-    assert.match(r.coverage.unparsedFiles.find((f) => f.file === 'lib/types.ts').reason, /TypeScript/);
+    assert.deepEqual(r.coverage.unparsedFiles.map((f) => f.file).sort(), ['lib/broken.js', 'lib/view.tsx']);
+    assert.match(r.coverage.unparsedFiles.find((f) => f.file === 'lib/view.tsx').reason, /TypeScript/);
     const md = packageMarkdown({ ...r, ecosystem: 'npm', name: 't', fromVersion: '1.0.0', toVersion: '1.0.1' });
     assert.match(md, /found in the files that were inspected/);
     assert.match(md, /2 file\(s\) only pattern-scanned/);
