@@ -129,3 +129,19 @@ test('format detection without a file name, and npm lockfiles stay npm', () => {
     assert.equal(detectType(JSON.stringify({ lockfileVersion: 3, workspaces: { a: 1 }, packages: { 'node_modules/a': { version: '1.0.0' } } })), 'npm');
     assert.throws(() => detectType('<html>not a lockfile</html>'), /yarn\.lock, bun\.lock/);
 });
+
+test('Yarn 1: long space runs and long comments are read in linear time; a line over 16 KiB is refused', () => {
+    const run = ' '.repeat(16000);
+    const entry = y1('left-pad@^1.0.0', '1.1.0', 'https://registry.yarnpkg.com/left-pad/-/left-pad-1.1.0.tgz');
+    const start = process.hrtime.bigint();
+    // 64 comment lines just under the cap, each a space run, then a real entry.
+    const comments = Array.from({ length: 64 }, () => `#${run}x`).join('\n');
+    assert.deepEqual(parseYarnV1(`${HEADER}${comments}\n\n${entry}\n`).map((e) => e.keys), [['left-pad@^1.0.0']]);
+    // 64 key lines with a space run inside, each refused on its own.
+    for (let i = 0; i < 64; i++) assert.throws(() => parseYarnV1(`${HEADER}a${run}b:\n`), /not a key|not a field/);
+    const ms = Number(process.hrtime.bigint() - start) / 1e6;
+    assert.ok(ms < 2000, `took ${ms} ms`);
+    for (const line of [`#${' '.repeat(65536)}x`, `a${' '.repeat(65536)}b:`]) {
+        assert.throws(() => parseYarnV1(`${HEADER}${line}\n`), /line 4: it is longer than 16384 characters/);
+    }
+});
