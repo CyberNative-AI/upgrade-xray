@@ -255,12 +255,25 @@ function wheelRank(fn) {
 /** The kinds of PyPI artifact compared (the `kind` of each pair below and of each finding's `artifact`). */
 export const ARTIFACT_KINDS = ['wheel', 'sdist'];
 
-/** Choose comparable artifacts: best wheel and the sdist, for both versions. */
+/** A wheel's compatibility tag ("cp312-cp312-manylinux_2_17_x86_64"): the last three fields of its file name. */
+const wheelTag = (fn) => fn.replace(/\.whl$/, '').split('-').slice(-3).join('-');
+
+/**
+ * Choose comparable artifacts: the sdist and one wheel of each version, for both versions.
+ * The wheel is the best one whose tag both versions publish, so a wheel for a new Python version
+ * is not compared with one built for an older Python. Only when no tag is shared is each
+ * version's best wheel used.
+ */
 export function pypiPickArtifacts(fromFiles, toFiles) {
     const pairs = [];
     const sd = (files) => files.find((f) => f.packagetype === 'sdist' && /\.(tar\.gz|zip|tgz)$/.test(f.filename));
-    const bestWheel = (files) => files.filter((f) => f.packagetype === 'bdist_wheel').sort((a, b) => wheelRank(b.filename) - wheelRank(a.filename))[0];
-    const fw = bestWheel(fromFiles); const tw = bestWheel(toFiles);
+    const wheels = (files) => files.filter((f) => f.packagetype === 'bdist_wheel').sort((a, b) => wheelRank(b.filename) - wheelRank(a.filename));
+    const fws = wheels(fromFiles); const tws = wheels(toFiles);
+    const fromTags = new Map();
+    for (const f of fws) if (!fromTags.has(wheelTag(f.filename))) fromTags.set(wheelTag(f.filename), f);
+    const shared = tws.find((f) => fromTags.has(wheelTag(f.filename)));
+    const fw = shared ? fromTags.get(wheelTag(shared.filename)) : fws[0];
+    const tw = shared || tws[0];
     if (fw && tw) pairs.push({ kind: 'wheel', from: fw, to: tw });
     const fs = sd(fromFiles); const ts = sd(toFiles);
     if (fs && ts) pairs.push({ kind: 'sdist', from: fs, to: ts });

@@ -2,12 +2,12 @@
 import { KINDS, SEVERITY_RANK } from './signals.js';
 import { MARKED_TITLE, mark as v, mergeNotes, unmark } from './prose.js';
 
-const INSTALL_CAP_KINDS = new Set(['network', 'shell', 'python-spawn', 'eval', 'encoded-exec', 'env-bulk', 'credential-path', 'exfil-endpoint', 'self-publish', 'persistence', 'secret-harvest', 'obfuscation', 'dynamic-require']);
+const INSTALL_CAP_KINDS = new Set(['network', 'shell', 'python-spawn', 'eval', 'encoded-exec', 'env-bulk', 'credential-path', 'key-exfil', 'exfil-endpoint', 'self-publish', 'persistence', 'secret-harvest', 'obfuscation', 'dynamic-require']);
 // Strong indicators are compared file by file as well: one already elsewhere in the package (an
 // npm tool that reads .npmrc, a migration script that runs subprocess at import time) must not
 // hide the same indicator newly added to another existing file. Ordinary capabilities (network,
 // shell, eval) stay package-wide: per file they mostly report refactors.
-const PER_FILE_KINDS = new Set(['encoded-exec', 'credential-path', 'exfil-endpoint', 'self-publish', 'persistence', 'secret-harvest', 'global-hook']);
+const PER_FILE_KINDS = new Set(['encoded-exec', 'credential-path', 'key-exfil', 'exfil-endpoint', 'self-publish', 'persistence', 'secret-harvest', 'global-hook']);
 const MAX_LOCATIONS = 5;
 const INERT_DIR = /(^|\/)(tests?|__tests__|testing|spec|examples?|docs?|benchmarks?|fixtures?)\//i;
 const LOWER = { high: 'medium', medium: 'low', low: 'info', info: 'info' };

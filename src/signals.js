@@ -12,6 +12,7 @@ export const KINDS = {
     obfuscation: ['high', 'Obfuscated code'],
     'encoded-exec': ['high', 'Executes decoded or downloaded code'],
     'credential-path': ['high', 'Reads credential or wallet locations'],
+    'key-exfil': ['high', 'Sends keys or seed phrases to a hard-coded address'],
     'exfil-endpoint': ['high', 'Hard-coded exfiltration-style endpoint'],
     'self-publish': ['high', 'Publishes packages, reads tokens or edits CI workflows'],
     persistence: ['high', 'Installs persistence (shell rc, cron, services, autostart)'],
@@ -66,12 +67,37 @@ export function stripNodePrefix(m) {
     return m.startsWith('node:') ? m.slice(5) : m;
 }
 
+// A config file under a directory named by a variable other than the home directory
+// ("$NODE_VIRTUAL_ENV/.npmrc", "${PREFIX}/.npmrc", "__ENV_DIR__/.npmrc") is a project's or an
+// environment's own config, not the user's stored credentials. "$HOME/.npmrc" and "~/.npmrc" still count.
+const CONFIG_FILE = /\.(npmrc|pypirc|netrc)$/i;
+const VAR_DIR = /(?:\$\{?|%|__)([A-Za-z_][A-Za-z0-9_]*?)(?:\}|%|__)?[\\/]$/;
+const HOME_VAR = /HOME|PROFILE|APPDATA|USER/i;
+const MAX_CREDENTIAL_MATCHES = 50;
+let credentialAll;
+
+function credentialMatch(t, rx) {
+    credentialAll ??= new RegExp(rx.source, 'gi');
+    let n = 0;
+    for (const m of t.matchAll(credentialAll)) {
+        if (++n > MAX_CREDENTIAL_MATCHES) break;
+        const file = m[0].match(CONFIG_FILE);
+        if (file) {
+            const at = m.index + file.index;
+            const dir = t.slice(Math.max(0, at - 40), at).match(VAR_DIR);
+            if (dir && !HOME_VAR.test(dir[1])) continue;
+        }
+        return m;
+    }
+    return null;
+}
+
 /** Apply string indicators to a string literal; push signals. */
 export function scanString(s, push) {
     if (typeof s !== 'string' || s.length < 4) return;
     const t = s.length > 20000 ? s.slice(0, 20000) : s;
     for (const [kind, rx] of STRING_INDICATORS) {
-        const m = t.match(rx);
+        const m = kind === 'credential-path' ? credentialMatch(t, rx) : t.match(rx);
         if (m) push(kind, m[0].slice(0, 80));
     }
     for (const h of hostsIn(t)) push('new-host', h);
