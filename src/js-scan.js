@@ -141,6 +141,7 @@ export function scanJs(src, { wantExports = false, typescript = false } = {}) {
         if (EVAL_MODULES_JS.has(base)) { push('eval', `module ${base}`, line); stats.evalLike = true; }
     };
 
+    const shellCalls = new Map();
     walk.fullAncestor(ast, (node, _state, ancestors) => {
         const line = node.loc?.start.line ?? 0;
         switch (node.type) {
@@ -190,8 +191,9 @@ export function scanJs(src, { wantExports = false, typescript = false } = {}) {
                     push('shell', `${name.split('.').pop()}()`, line);
                 }
                 if (SHELL_CALLS.has(name.split('.').pop())) {
-                    const inline = stringsIn(node.arguments).find((x) => INLINE_CODE.test(x));
-                    if (inline) push('encoded-exec', `${name.split('.').pop()}() launched with inline code: ${inline.match(INLINE_CODE)[0]}`, line);
+                    const inline = inlineIn(node.arguments, shellCalls);
+                    shellCalls.set(node, inline);
+                    if (inline) push('encoded-exec', `${name.split('.').pop()}() launched with inline code: ${inline}`, line);
                 }
                 // whole-environment use: JSON.stringify(process.env), Object.entries(process.env), send(process.env)
                 for (const a of node.arguments || []) {
@@ -290,17 +292,66 @@ export function scanJs(src, { wantExports = false, typescript = false } = {}) {
     return { signals, exports: exp, parsed: true, minified };
 }
 
-const INLINE_CODE = /\beval\(|base64\s+-d|(curl|wget)\b[^|]{0,200}\|\s*(ba)?sh\b|powershell[^\n]*\s-e(nc|ncodedcommand)?\b|\bnode\s+-e\s|python[0-9.]*\s+-c\s/i;
+// Inline code in a shell command. One pattern used to be
+// /\beval\(|base64\s+-d|(curl|wget)\b[^|]{0,200}\|\s*(ba)?sh\b|powershell[^\n]*\s-e(nc|ncodedcommand)?\b|\bnode\s+-e\s|python[0-9.]*\s+-c\s/i;
+// its powershell branch rescanned the rest of the line from every "powershell" on it, so the
+// work grew with the square of a string's length. That branch is now found by encodedPowershell().
+// Each branch begins with a different fixed word, so at most one can match at any index, and
+// the leftmost match of the whole pattern is the leftmost of the two searches below.
+const INLINE_CODE = /\beval\(|base64\s+-d|(curl|wget)\b[^|]{0,200}\|\s*(ba)?sh\b|\bnode\s+-e\s|python[0-9.]*\s+-c\s/i;
 
-function stringsIn(args) {
-    const out = [];
-    for (const a of args || []) {
-        walk.full(a, (n) => {
-            if (n.type === 'Literal' && typeof n.value === 'string') out.push(n.value);
-            else if (n.type === 'TemplateElement' && n.value.cooked) out.push(n.value.cooked);
-        });
+/** What the one combined pattern above matched in s, or null; linear in the length of s. */
+export function inlineCode(s) {
+    const other = s.match(INLINE_CODE);
+    const ps = encodedPowershell(s, other ? other.index : s.length);
+    return ps ?? (other ? other[0] : null);
+}
+
+/**
+ * The match of that pattern's powershell[^\n]*\s-e(nc|ncodedcommand)?\b branch starting before
+ * `stop`, or null.
+ * Only the first "powershell" on a line can start it: any later one sees a part of the same rest.
+ * Greedy [^\n]* makes it end at the last flag after that word, which may start at the line's
+ * own \n. Each line is read once.
+ */
+function encodedPowershell(s, stop) {
+    const word = /powershell/gi;
+    const flagAt = /\s-e(nc|ncodedcommand)?\b/iy;
+    for (let m; (m = word.exec(s)) && m.index < stop;) {
+        const from = word.lastIndex;
+        let eol = s.indexOf('\n', from);
+        if (eol < 0) eol = s.length;
+        let end = -1;
+        flagAt.lastIndex = eol;
+        const atEol = eol < s.length ? flagAt.exec(s) : null;
+        if (atEol) end = eol + atEol[0].length;
+        else for (const f of s.slice(from, eol).matchAll(/\s-e(nc|ncodedcommand)?\b/gi)) end = from + f.index + f[0].length;
+        if (end >= 0) return s.slice(m.index, end);
+        word.lastIndex = eol;
     }
-    return out;
+    return null;
+}
+
+/**
+ * Inline code in the first argument string that has any, in the walker's order. The scan walk
+ * is post-order, so every shell call nested in these arguments already has its own result in
+ * `shellCalls`: that result stands in for its arguments, and each string is read once per file.
+ */
+function inlineIn(args, shellCalls) {
+    let found = null;
+    const nested = (n, st, c) => {
+        if (!shellCalls.has(n)) return walk.base[n.type](n, st, c);
+        c(n.callee, st, 'Expression');
+        found ??= shellCalls.get(n);
+    };
+    const visitors = {
+        Literal(n) { if (found === null && typeof n.value === 'string') found = inlineCode(n.value); },
+        TemplateElement(n) { if (found === null && n.value.cooked) found = inlineCode(n.value.cooked); },
+        CallExpression: nested,
+        NewExpression: nested,
+    };
+    for (const a of args || []) walk.recursive(a, null, visitors);
+    return found;
 }
 
 const DECODERS = /^(Buffer\.from|atob|window\.atob|globalThis\.atob|decodeURIComponent|unescape|String\.fromCharCode|String\.fromCodePoint|.*\.toString)$/;

@@ -165,9 +165,27 @@ export function npmOwners(doc) {
     return [...out];
 }
 
+/**
+ * The addresses /[\w.+-]+@[\w.-]+/g finds in s, in one pass. That regex restarts at every character
+ * of a long run with no "@" after it; PyPI sets no documented size for these fields, and the JSON
+ * response is only capped at 80 MB. A match can start only where a run of [\w.+-] starts (or where
+ * the previous match ended), and only if "@" and a domain character follow that whole run.
+ */
+export function emailsIn(s) {
+    const local = /[\w.+-]+/g;
+    const domain = /@[\w.-]+/y;
+    const out = [];
+    for (let m; (m = local.exec(s));) {
+        domain.lastIndex = local.lastIndex;
+        const d = domain.exec(s);
+        if (d) { out.push(m[0] + d[0]); local.lastIndex = domain.lastIndex; }
+    }
+    return out;
+}
+
 export function pypiOwners(info) {
     const out = new Set();
-    for (const k of ['author_email', 'maintainer_email']) for (const e of String(info?.[k] || '').toLowerCase().match(/[\w.+-]+@[\w.-]+/g) || []) out.add(`e:${e}`);
+    for (const k of ['author_email', 'maintainer_email']) for (const e of emailsIn(String(info?.[k] || '').toLowerCase())) out.add(`e:${e}`);
     for (const u of Object.values(info?.project_urls || {}).concat(info?.home_page || [])) {
         const m = String(u).match(/github\.com\/([\w.-]+)\//i);
         if (m) out.add(`gh:${m[1].toLowerCase()}`);

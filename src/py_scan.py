@@ -48,7 +48,38 @@ def contains_call(node, pattern):
     return None
 
 
-INLINE_CODE = re.compile(r"exec\(|eval\(|b64decode|base64\s+-d|\|\s*(ba)?sh\b|powershell[^\n]*-e(nc|ncodedcommand)?\b|python[0-9.]*\s+-c\b|marshal\.loads|zlib\.decompress", re.I)
+# Inline code in a shell command. One pattern used to be
+# r"exec\(|eval\(|b64decode|base64\s+-d|\|\s*(ba)?sh\b|powershell[^\n]*-e(nc|ncodedcommand)?\b|python[0-9.]*\s+-c\b|marshal\.loads|zlib\.decompress"
+# (re.I); its powershell branch rescanned the rest of the line from every "powershell" on it.
+# Each branch begins with a different fixed word, so at most one can match at any index, and
+# the leftmost match of the whole pattern is the leftmost of the two searches in inline_code().
+INLINE_CODE = re.compile(r"exec\(|eval\(|b64decode|base64\s+-d|\|\s*(ba)?sh\b|python[0-9.]*\s+-c\b|marshal\.loads|zlib\.decompress", re.I)
+POWERSHELL = re.compile(r"powershell", re.I)
+ENCODED_FLAG = re.compile(r"-e(nc|ncodedcommand)?\b", re.I)
+
+
+def inline_code(s):
+    """What the one combined pattern above matched in s, or None; linear in len(s).
+
+    Only the first "powershell" on a line can start the powershell branch: any later one sees a
+    part of the same rest. Greedy [^\n]* makes it end at the last flag on that line.
+    """
+    other = INLINE_CODE.search(s)
+    stop = other.start() if other else len(s)
+    pos = 0
+    while True:
+        m = POWERSHELL.search(s, pos)
+        if not m or m.start() >= stop:
+            return other.group(0) if other else None
+        eol = s.find("\n", m.end())
+        if eol < 0:
+            eol = len(s)
+        last = None
+        for last in ENCODED_FLAG.finditer(s, m.end(), eol):
+            pass
+        if last:
+            return s[m.start():last.end()]
+        pos = eol
 
 
 def strings_in(node):
@@ -144,10 +175,10 @@ class Scanner(ast.NodeVisitor):
             self.push("shell", name + "()", node)
             if self.depth == 0:
                 self.push("shell", name + "() at import time", node)
-            inline = next((x for x in strings_in(node) if INLINE_CODE.search(x)), None)
+            inline = next((c for c in map(inline_code, strings_in(node)) if c), None)
             spawns_python = any(dotted(a) == "sys.executable" for a in ast.walk(node) if isinstance(a, ast.Attribute))
             if inline is not None:
-                self.push("encoded-exec", "%s() launched with inline code: %s" % (name, INLINE_CODE.search(inline).group(0)), node)
+                self.push("encoded-exec", "%s() launched with inline code: %s" % (name, inline), node)
             elif spawns_python and any(x == "-c" for x in strings_in(node)):
                 self.push("eval", name + "(sys.executable, '-c', ...)", node)
             elif spawns_python or any(PY_INTERP.match(x.replace("\\", "/").rsplit("/", 1)[-1]) or PY_COMMAND.search(x) for x in strings_in(node)):
@@ -201,7 +232,7 @@ class Scanner(ast.NodeVisitor):
         if isinstance(v, str) and len(v) >= 4:
             if len(v) > 1500 and re.fullmatch(r"[A-Za-z0-9+/=\s]+", v[:4000]):
                 self.long_encoded += 1
-            elif INLINE_CODE.search(v[:2000]) and re.search(r"exec\(|eval\(", v[:2000]):
+            elif inline_code(v[:2000]) and re.search(r"exec\(|eval\(", v[:2000]):
                 self.inline_exec = True
             self.strings.add(v[:20000])
         self.generic_visit(node)
