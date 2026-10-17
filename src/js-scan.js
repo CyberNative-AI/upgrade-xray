@@ -23,11 +23,16 @@ const PARSE_OPTS = {
  * TypeScript source as JavaScript, or null when Node cannot convert it (or is too old to).
  * Strip mode blanks the types and keeps every other character in place, so lines stay
  * right. Enums, namespaces and `<T>x` casts need transform mode, which moves lines, so
- * `exactLines` is false and callers must not quote line numbers.
+ * `exactLines` is false and callers must not quote line numbers. Files above TRANSFORM_LIMIT get
+ * strip mode only.
  */
+// Transform mode takes superlinear time on some input (20,000 enums: 4 s), so it is tried only on
+// files up to this size. The largest of 191 such files in happy-dom 21 was 116 KB.
+export const TRANSFORM_LIMIT = 128 * 1024;
+
 export function stripTypes(src) {
     if (typeof nodeModule.stripTypeScriptTypes !== 'function') return null;
-    for (const mode of ['strip', 'transform']) {
+    for (const mode of src.length <= TRANSFORM_LIMIT ? ['strip', 'transform'] : ['strip']) {
         try { return { code: nodeModule.stripTypeScriptTypes(src, { mode }), exactLines: mode === 'strip' }; } catch { /* try next */ }
     }
     return null;

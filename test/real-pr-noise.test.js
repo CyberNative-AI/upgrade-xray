@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { npmSnapshot } from '../src/snapshot.js';
 import { diffSnapshots } from '../src/diff.js';
-import { NAME_LIST_MIN, scanJs } from '../src/js-scan.js';
+import { NAME_LIST_MIN, TRANSFORM_LIMIT, scanJs } from '../src/js-scan.js';
 
 const pkg = (extra = {}) => Buffer.from(JSON.stringify({ name: 't', version: '1.0.0', main: 'index.js', ...extra }));
 const files = (entries, extra) => new Map([['package.json', pkg(extra)], ['index.js', Buffer.from('module.exports = 1;')], ...entries.map(([p, s]) => [p, Buffer.from(s)])]);
@@ -34,6 +34,16 @@ test('TypeScript that needs transform mode (enum) is parsed, but no line is clai
     assert.equal(net.length, 1);
     assert.deepEqual(net[0].locations, [{ file: 'src/mode.ts', line: 0 }]);
     assert.equal(scanJs(after, { typescript: true }).parsed, true);
+});
+
+test('a large file that only transform mode could convert is pattern-scanned quickly, not transformed', () => {
+    const enums = Array.from({ length: 20000 }, (_, i) => `enum E${i} { A, B }`).join('\n') + '\nfetch("https://x.example/");\n';
+    assert.ok(enums.length > TRANSFORM_LIMIT);
+    const t = Date.now();
+    const r = scanJs(enums, { typescript: true });
+    assert.ok(Date.now() - t < 1500, `${Date.now() - t} ms`);
+    assert.equal(r.parsed, false);
+    assert.ok(r.signals.some((x) => x.kind === 'network'));
 });
 
 test('TypeScript Node cannot convert stays pattern-scanned and listed, never silently clean', async () => {
