@@ -1,6 +1,6 @@
 # Upgrade X-Ray
 
-**See what a dependency update really changes before you merge it — computed from the published npm and PyPI files, not from the changelog.**
+**In seconds, at $0.02 per package diff or $0.25 per lockfile report, see what a dependency update really changes in its published npm or PyPI files (new install scripts; new network, shell or eval calls; removed exports; new dependencies) without installing it.**
 
 For each update, Upgrade X-Ray downloads the old and new published artifacts (npm tarball, PyPI wheel and sdist) from the public registry hosts only, refuses any download that does not match a registry checksum, and compares them statically. Nothing is installed or executed. It reports:
 
