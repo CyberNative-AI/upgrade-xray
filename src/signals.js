@@ -80,9 +80,9 @@ function credentialMatch(t, rx) {
     credentialAll ??= new RegExp(rx.source, 'gi');
     let n = 0;
     for (const m of t.matchAll(credentialAll)) {
-        if (++n > MAX_CREDENTIAL_MATCHES) break;
         const file = m[0].match(CONFIG_FILE);
-        if (file) {
+        // Past the cap the match counts, so a string full of environment config cannot hide a home read.
+        if (file && ++n <= MAX_CREDENTIAL_MATCHES) {
             const at = m.index + file.index;
             const dir = t.slice(Math.max(0, at - 40), at).match(VAR_DIR);
             if (dir && !HOME_VAR.test(dir[1])) continue;
