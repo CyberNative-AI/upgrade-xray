@@ -102,7 +102,11 @@ const HOOK_TARGETS = /^(window|globalThis|global|self)\.(fetch|XMLHttpRequest|We
 // Key material: a seed or recovery phrase, or a secret or private key ("this._secretKey" too).
 const KEY_NAME = /^_*(seed|seedPhrase|mnemonic|mnemonicPhrase|recoveryPhrase|secretKey|secret_key|privateKey|private_key|privKey|priv_key)$/i;
 const SEND_CALL = /(^|\.)(fetch|sendBeacon|post|put|patch|request|ajax)$/;
-const KEY_SCAN_NODES = 400;
+const isFunction = (n) => /Function/.test(n.type);
+const calleeName = (n) => {
+    const c = n.callee.type === 'ChainExpression' ? n.callee.expression : n.callee;
+    return c.type === 'Identifier' ? c.name : c.type === 'MemberExpression' ? memberName(c) : '';
+};
 
 /** The host of a hard-coded URL in a request's first two arguments, if it is not a well-known site. */
 function sendHost(args) {
@@ -111,29 +115,6 @@ function sendHost(args) {
         if (s && /^(https?|wss?):\/\//i.test(s)) {
             const [h] = hostsIn(s.slice(0, 300));
             if (h) return h;
-        }
-    }
-    return null;
-}
-
-/** The first key-material name read by these expressions. Object keys and nested functions are not read. */
-function keyNameIn(nodes) {
-    const stack = [...nodes].reverse();
-    for (let seen = 0; stack.length && seen < KEY_SCAN_NODES; seen++) {
-        const n = stack.pop();
-        if (!n || typeof n.type !== 'string' || /Function/.test(n.type)) continue;
-        if (n.type === 'Identifier') {
-            if (KEY_NAME.test(n.name)) return n.name;
-        } else if (n.type === 'Property') {
-            stack.push(n.value);
-            if (n.computed) stack.push(n.key);
-        } else {
-            const kids = [];
-            for (const [k, v] of Object.entries(n)) {
-                if (k === 'loc' || k === 'type') continue;
-                if (Array.isArray(v)) kids.push(...v); else if (v && typeof v.type === 'string') kids.push(v);
-            }
-            stack.push(...kids.reverse());
         }
     }
     return null;
@@ -197,14 +178,48 @@ export function scanJs(src, { wantExports = false, typescript = false } = {}) {
     };
 
     const shellCalls = new Map();
-    const senders = new Map();
+    // Key material sent by a request to a hard-coded address. For a key-named identifier, the
+    // calls it is an argument of (directly or inside other expressions, never across a function
+    // boundary) are looked up through its ancestors; each ancestor's answer is kept, so every node
+    // is worked out once. `send` is the nearest such request, `call` the nearest call of any kind.
+    const senders = new Map(); // function name -> { call, host, line } of a request inside it
+    const keyCalls = new Map(); // called function name -> first key-material name passed to it
     const keyExfil = new Set();
     const pushKeyExfil = (detail, line) => { if (!keyExfil.has(detail)) { keyExfil.add(detail); push('key-exfil', detail, line); } };
+    const NONE = { send: null, call: null };
+    const keyCtx = new WeakMap();
+    const hostOf = new WeakMap();
+    const sendTo = (call) => {
+        if (!hostOf.has(call)) hostOf.set(call, SEND_CALL.test(calleeName(call)) ? sendHost(call.arguments) : null);
+        return hostOf.get(call);
+    };
+    const keyContext = (anc) => {
+        let k = anc.length - 1;
+        while (k > 0 && !keyCtx.has(anc[k - 1]) && !isFunction(anc[k - 1])) k--;
+        let c = NONE;
+        for (let i = k; i < anc.length; i++) {
+            const x = anc[i]; const p = anc[i - 1];
+            if (!p || isFunction(p)) c = NONE;
+            else {
+                const up = keyCtx.get(p) || NONE;
+                c = (p.type === 'CallExpression' || p.type === 'NewExpression') && p.callee !== x ? { send: sendTo(p) ? p : up.send, call: p } : up;
+            }
+            if (i < anc.length - 1) keyCtx.set(x, c);
+        }
+        return c;
+    };
+    const onKeyName = (key, anc) => {
+        const c = keyContext(anc);
+        if (c.send) pushKeyExfil(`${calleeName(c.send).split('.').pop()}() sends ${key} to ${sendTo(c.send)}`, c.send.loc?.start.line ?? 0);
+        const fn = c.call && calleeName(c.call).split('.').pop();
+        if (fn && !keyCalls.has(fn)) keyCalls.set(fn, key);
+    };
     walk.fullAncestor(ast, (node, _state, ancestors) => {
         const line = node.loc?.start.line ?? 0;
         switch (node.type) {
             case 'Identifier':
                 if (/^_0x[0-9a-f]{3,}$/i.test(node.name)) obfuscatedIds++;
+                if (KEY_NAME.test(node.name)) onKeyName(node.name, ancestors);
                 break;
             case 'Literal':
                 if (typeof node.value === 'string') onString(node.value, line, isHostName(node.value) ? listSize(ancestors[ancestors.length - 2]) : 0);
@@ -253,17 +268,11 @@ export function scanJs(src, { wantExports = false, typescript = false } = {}) {
                     shellCalls.set(node, inline);
                     if (inline) push('encoded-exec', `${name.split('.').pop()}() launched with inline code: ${inline}`, line);
                 }
-                // A request to a hard-coded address that carries key material, directly or through the
-                // function the request is in ("Loader.addToQueue(secretKey)"; that function is checked after the walk).
-                if (SEND_CALL.test(name)) {
-                    const host = sendHost(node.arguments);
-                    if (host) {
-                        const call = `${name.split('.').pop()}()`;
-                        const key = keyNameIn(node.arguments);
-                        if (key) pushKeyExfil(`${call} sends ${key} to ${host}`, line);
-                        const fn = enclosingName(ancestors);
-                        if (fn && !senders.has(fn)) senders.set(fn, { call, host, line });
-                    }
+                // A request to a hard-coded address inside a named function: a key passed to that
+                // function ("Loader.addToQueue(secretKey)") is sent too. Matched after the walk.
+                if (sendTo(node)) {
+                    const fn = enclosingName(ancestors);
+                    if (fn && !senders.has(fn)) senders.set(fn, { call: `${name.split('.').pop()}()`, host: sendTo(node), line });
                 }
                 // whole-environment use: JSON.stringify(process.env), Object.entries(process.env), send(process.env)
                 for (const a of node.arguments || []) {
@@ -309,6 +318,7 @@ export function scanJs(src, { wantExports = false, typescript = false } = {}) {
                 }
                 break;
             case 'MemberExpression': {
+                if (!node.computed && node.property.type === 'Identifier' && KEY_NAME.test(node.property.name)) onKeyName(node.property.name, ancestors);
                 const t = memberName(node);
                 if (/^(window\.)?ethereum$/.test(t) && node.object.type !== 'Identifier') break;
                 if (t === 'window.ethereum') push('crypto-wallet', 'window.ethereum', line);
@@ -355,17 +365,7 @@ export function scanJs(src, { wantExports = false, typescript = false } = {}) {
         }
     });
 
-    if (senders.size) {
-        walk.simple(ast, {
-            CallExpression(node) {
-                const callee = node.callee.type === 'ChainExpression' ? node.callee.expression : node.callee;
-                const fn = callee.type === 'Identifier' ? callee.name : callee.type === 'MemberExpression' && !callee.computed ? callee.property.name : '';
-                const s = senders.get(fn);
-                const key = s && keyNameIn(node.arguments);
-                if (key) pushKeyExfil(`${s.call} sends ${key} to ${s.host} through ${fn}()`, s.line);
-            },
-        });
-    }
+    for (const [fn, sd] of senders) if (keyCalls.has(fn)) pushKeyExfil(`${sd.call} sends ${keyCalls.get(fn)} to ${sd.host} through ${fn}()`, sd.line);
     if (obfuscatedIds >= 40 && !signals.some((s) => s.kind === 'obfuscation')) push('obfuscation', `${obfuscatedIds} _0x-style identifier uses`);
     if (walletStrings >= 5) push('crypto-wallet', `${walletStrings} wallet-address-like strings`);
     if (longEncoded && stats.evalLike) push('encoded-exec', `${longEncoded} long encoded string(s) plus dynamic evaluation`);

