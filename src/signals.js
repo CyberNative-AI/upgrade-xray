@@ -67,11 +67,13 @@ export function stripNodePrefix(m) {
     return m.startsWith('node:') ? m.slice(5) : m;
 }
 
-// A config file under a directory named by a variable other than the home directory
-// ("$NODE_VIRTUAL_ENV/.npmrc", "${PREFIX}/.npmrc", "__ENV_DIR__/.npmrc") is a project's or an
-// environment's own config, not the user's stored credentials. "$HOME/.npmrc" and "~/.npmrc" still count.
-const CONFIG_FILE = /\.(npmrc|pypirc|netrc)$/i;
-const VAR_DIR = /(?:\$\{?|%|__)([A-Za-z_][A-Za-z0-9_]*?)(?:\}|%|__)?[\\/]$/;
+// An .npmrc path that a script sets as npm's own config location, under a directory named by a
+// variable that is not the home directory, is that environment's config, not the user's stored
+// credentials: `npm_config_userconfig="$NODE_VIRTUAL_ENV/.npmrc"`, `--userconfig ${PREFIX}/.npmrc`.
+// The variable's value is not known; the name is the only evidence that it is not home. Any other
+// .npmrc path, including "$HOME/.npmrc", "~/.npmrc" and a bare ".npmrc", still counts.
+const NPMRC = /\.npmrc$/i;
+const NPM_CONFIG_SET = /(?:npm_config_(?:user|global)config|--(?:user|global)config)(?:\s*=\s*|\s+)["']?(?:\$\{?|%|__)([A-Za-z_][A-Za-z0-9_]*?)(?:\}|%|__)?[\\/]$/i;
 const HOME_VAR = /HOME|PROFILE|APPDATA|USER/i;
 const MAX_CREDENTIAL_MATCHES = 50;
 let credentialAll;
@@ -80,12 +82,12 @@ function credentialMatch(t, rx) {
     credentialAll ??= new RegExp(rx.source, 'gi');
     let n = 0;
     for (const m of t.matchAll(credentialAll)) {
-        const file = m[0].match(CONFIG_FILE);
+        const file = m[0].match(NPMRC);
         // Past the cap the match counts, so a string full of environment config cannot hide a home read.
         if (file && ++n <= MAX_CREDENTIAL_MATCHES) {
             const at = m.index + file.index;
-            const dir = t.slice(Math.max(0, at - 40), at).match(VAR_DIR);
-            if (dir && !HOME_VAR.test(dir[1])) continue;
+            const set = t.slice(Math.max(0, at - 80), at).match(NPM_CONFIG_SET);
+            if (set && !HOME_VAR.test(set[1])) continue;
         }
         return m;
     }

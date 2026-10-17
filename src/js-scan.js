@@ -120,18 +120,12 @@ function sendHost(args) {
     return null;
 }
 
-/** Name of the innermost function around a node: its own name, or the method, property or variable it is assigned to. */
-function enclosingName(ancestors) {
-    for (let i = ancestors.length - 2; i >= 0; i--) {
-        const a = ancestors[i];
-        if (!/Function/.test(a.type)) continue;
-        if (a.id?.name) return a.id.name;
-        const p = ancestors[i - 1];
-        if (p?.type === 'MethodDefinition' || p?.type === 'Property' || p?.type === 'PropertyDefinition') return p.key?.name ?? (typeof p.key?.value === 'string' ? p.key.value : null);
-        if (p?.type === 'VariableDeclarator' && p.id.type === 'Identifier') return p.id.name;
-        if (p?.type === 'AssignmentExpression' && p.left.type === 'MemberExpression') return memberName(p.left).split('.').pop();
-        return null;
-    }
+/** Name of function `f` whose parent is `p`: its own name, or the method, property or variable it is assigned to. */
+function functionName(f, p) {
+    if (f.id?.name) return f.id.name;
+    if (p?.type === 'MethodDefinition' || p?.type === 'Property' || p?.type === 'PropertyDefinition') return p.key?.name ?? (typeof p.key?.value === 'string' ? p.key.value : null);
+    if (p?.type === 'VariableDeclarator' && p.id.type === 'Identifier') return p.id.name;
+    if (p?.type === 'AssignmentExpression' && p.left.type === 'MemberExpression') return memberName(p.left).split('.').pop();
     return null;
 }
 
@@ -207,6 +201,16 @@ export function scanJs(src, { wantExports = false, typescript = false } = {}) {
             if (i < anc.length - 1) keyCtx.set(x, c);
         }
         return c;
+    };
+    // Name of the innermost function around a node, kept for every node on the way up (null
+    // outside any function or for an anonymous one), so each node is worked out once.
+    const fnNameOf = new WeakMap();
+    const enclosingName = (anc) => {
+        let k = anc.length - 1;
+        while (k > 0 && !isFunction(anc[k - 1]) && !fnNameOf.has(anc[k - 1])) k--;
+        const name = k === 0 ? null : isFunction(anc[k - 1]) ? functionName(anc[k - 1], anc[k - 2]) : fnNameOf.get(anc[k - 1]);
+        for (let i = k; i < anc.length; i++) fnNameOf.set(anc[i], name);
+        return name;
     };
     const onKeyName = (key, anc) => {
         const c = keyContext(anc);

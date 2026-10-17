@@ -66,6 +66,17 @@ test('many key names and calls are worked out in linear time', () => {
     assert.ok(Date.now() - t < 3000, `${Date.now() - t} ms`);
 });
 
+test('finding the function around many requests does not depend on how deep they are', () => {
+    // Each node's enclosing function is worked out once. Walking up from every request again
+    // made 400 levels of nesting cost 3.6 times one level; now both cost about the same.
+    const src = (d) => `function f() {${'if (a) {'.repeat(d)}${Array.from({ length: 30000 }, (_, i) => `fetch("https://h${i % 50}.example-bad.top/");`).join('')}${'}'.repeat(d)}}`;
+    const time = (s) => { const t = process.hrtime.bigint(); scanJs(s); return Number(process.hrtime.bigint() - t); };
+    const shallow = src(1); const deep = src(400);
+    time(shallow); time(deep);
+    const ratio = Math.min(time(deep), time(deep)) / Math.min(time(shallow), time(shallow));
+    assert.ok(ratio < 2, `deep/shallow ${ratio.toFixed(2)}`);
+});
+
 test('no key-exfil without a hard-coded new host, without key material, or for an object key only', () => {
     for (const src of [
         'fetch(this.baseUrl + "/x", { body: JSON.stringify({ seed }) });', // address not hard-coded
@@ -86,30 +97,38 @@ test('the same request in both versions is not new', async () => {
     assert.deepEqual(r.findings.filter((x) => x.kind === 'key-exfil'), []);
 });
 
-test('an .npmrc under a non-home variable directory is config; under home it is still a credential read', () => {
+test('an .npmrc set as npm\'s own config location under a non-home variable is config; other reads still count', () => {
     for (const s of [
         'npm_config_userconfig="$NODE_VIRTUAL_ENV/.npmrc"',
         'set -gx npm_config_userconfig "${NODE_VIRTUAL_ENV}/.npmrc"',
         "export npm_config_userconfig='__NODE_VIRTUAL_ENV__/.npmrc'",
-        '%PREFIX%\\.pypirc',
+        'set "NPM_CONFIG_USERCONFIG=%VENV%\\.npmrc"',
+        'npm install --userconfig $PREFIX/.npmrc',
+        'npm_config_globalconfig=${ENV_DIR}/.npmrc',
     ]) assert.deepEqual(credential(s), [], s);
     for (const [s, want] of [
+        // a variable directory alone is no evidence of an environment's own config
+        ['cat $NODE_VIRTUAL_ENV/.npmrc', '/.npmrc'],
+        ['cp ${PREFIX}/.npmrc /tmp/x', '/.npmrc'],
+        ['__ENV_DIR__/.npmrc', '/.npmrc'],
+        ['$PREFIX/.pypirc', '.pypirc'],
+        ['$X/.netrc', '.netrc'],
+        // npm's config location set to a home directory still counts
+        ['npm_config_userconfig=$HOME/.npmrc', '/.npmrc'],
+        ['npm_config_userconfig="${HOME_DIR}/.npmrc"', '/.npmrc'],
+        ['set "npm_config_userconfig=%USERPROFILE%\\.npmrc"', '\\.npmrc'],
         ['cat $HOME/.npmrc', '/.npmrc'],
-        ['cat ${HOME}/.npmrc', '/.npmrc'],
-        ['cat $HOME_DIR/.npmrc', '/.npmrc'],
-        ['__HOME__/.npmrc', '/.npmrc'],
-        ['type %USERPROFILE%\\.npmrc', '\\.npmrc'],
         ['~/.npmrc', '/.npmrc'],
         ['.npmrc', '.npmrc'],
         // an environment's own config does not hide a home read later in the same string
-        ['cp $VENV/.npmrc /tmp; cat ~/.npmrc', '/.npmrc'],
-        ['cp $VENV/.npmrc /tmp; cat ~/.ssh/id_rsa', '.ssh/id_'],
+        ['npm_config_userconfig=$VENV/.npmrc; cat ~/.npmrc', '/.npmrc'],
+        ['npm_config_userconfig=$VENV/.npmrc; cat ~/.ssh/id_rsa', '.ssh/id_'],
     ]) assert.deepEqual(credential(s), [want], s);
 });
 
 test('environment-config matches are checked up to a cap; past it the next one counts, quickly', () => {
-    assert.deepEqual(credential('$VENV/.npmrc '.repeat(50)), []);
-    const s = '$VENV/.npmrc '.repeat(1500);
+    assert.deepEqual(credential('npm_config_userconfig=$VENV/.npmrc '.repeat(50)), []);
+    const s = 'npm_config_userconfig=$VENV/.npmrc '.repeat(550);
     const t = Date.now();
     assert.deepEqual(credential(s), ['/.npmrc']);
     assert.ok(Date.now() - t < 200, `${Date.now() - t} ms`);
