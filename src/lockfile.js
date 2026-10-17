@@ -1,4 +1,4 @@
-// Parse npm, pnpm, uv and poetry lockfiles and pip requirements files, and list the package versions that changed.
+// Parse npm, pnpm, Yarn, bun, uv and poetry lockfiles and pip requirements files, and list the package versions that changed.
 import YAML from 'yaml';
 import { parse as parseToml } from 'smol-toml';
 import semver from 'semver';
@@ -26,22 +26,29 @@ export function classifyOrigin(raw, ecosystem) {
     return PUBLIC_HOSTS[ecosystem].has(u.hostname.toLowerCase()) ? 'public' : 'private';
 }
 
+const SUPPORTED = 'package-lock.json, npm-shrinkwrap.json, pnpm-lock.yaml, yarn.lock, bun.lock, uv.lock, poetry.lock, requirements.txt';
+
 export function detectType(text, hint = '') {
     const h = hint.toLowerCase();
+    if (/bun\.lockb$/.test(h)) throw new LockfileError('bun.lockb is a binary lockfile and is not read; bun 1.2 and later write a text bun.lock (bun install --save-text-lockfile)');
     if (/package-lock\.json|npm-shrinkwrap\.json/.test(h)) return 'npm';
     if (/pnpm-lock\.ya?ml/.test(h)) return 'pnpm';
+    if (/yarn\.lock$/.test(h)) return /^__metadata:/m.test(text) ? 'yarn-berry' : 'yarn';
+    if (/bun\.lock$/.test(h)) return 'bun';
     if (/uv\.lock/.test(h)) return 'uv';
     if (/poetry\.lock/.test(h)) return 'poetry';
     if (/\.txt$/.test(h)) return 'requirements';
     const t = text.trimStart();
-    if (t.startsWith('{')) return 'npm';
+    if (t.startsWith('{')) return isBunLock(text) ? 'bun' : 'npm';
+    if (/^# yarn lockfile v1\s*$/m.test(text)) return 'yarn';
+    if (/^__metadata:\s*$/m.test(text)) return 'yarn-berry';
     if (/^lockfileVersion:\s*['"]?\d/m.test(text)) return 'pnpm';
     if (/^\[\[package\]\]/m.test(text)) {
         if (/^revision\s*=|^requires-python\s*=/m.test(text) || /source\s*=\s*\{\s*(registry|editable|virtual)\s*=/.test(text)) return 'uv';
         return 'poetry';
     }
     if (looksLikeRequirements(text)) return 'requirements';
-    throw new LockfileError('could not recognise the lockfile format (supported: package-lock.json, npm-shrinkwrap.json, pnpm-lock.yaml, uv.lock, poetry.lock, requirements.txt)');
+    throw new LockfileError(`could not recognise the lockfile format (supported: ${SUPPORTED})`);
 }
 
 /** Strip credentials and query strings (tokens, signed-URL parameters) from a recorded source before it is reported. */
@@ -51,7 +58,7 @@ export function redactSource(raw) {
     return s.replace(/^([a-z][\w+.-]*:\/\/)[^/@\s]*@/i, '$1').replace(/\?[^#\s]*/, '');
 }
 
-const ecosystemOf = (type) => (type === 'npm' || type === 'pnpm' ? 'npm' : 'pypi');
+const ecosystemOf = (type) => (['npm', 'pnpm', 'yarn', 'yarn-berry', 'bun'].includes(type) ? 'npm' : 'pypi');
 
 function addVer(map, name, version, extra) {
     if (!name || !version) return;
@@ -117,6 +124,177 @@ function parsePnpm(text) {
         const origin = res.type === 'directory' ? 'local' : res.type === 'git' || res.repo ? 'git' : classifyOrigin(recorded, 'npm');
         const realVersion = v?.version && !/^\d/.test(version) ? v.version : version;
         if (name && /^\d/.test(realVersion || '')) addVer(map, v?.name || name, realVersion, { origin, source: recorded || null, dev: Boolean(v?.dev) });
+    }
+    return map;
+}
+
+// ---- Yarn and bun ----
+
+/** "name@range" (a lockfile key or resolution): [name, range]. A scope's "@" is part of the name. */
+function splitSpec(spec) {
+    const at = spec.indexOf('@', 1);
+    return at < 0 ? [spec, ''] : [spec.slice(0, at), spec.slice(at + 1)];
+}
+
+// The origin of a range that names no registry version: git, a local path or a URL. Yarn's
+// portal: and exec: are local too.
+const protocolOrigin = (range) => (/^(portal|exec|patch):/i.test(range) ? 'local' : classifyOrigin(range, 'npm'));
+const hasProtocol = (range) => /^[a-z][a-z0-9+.-]*:/i.test(range) || /^[./~]/.test(range);
+
+// Yarn 1 lockfile syntax, as Yarn writes it: an entry is a line of keys ending in ":", its fields
+// are "name value" lines indented by two spaces per level, and a field ending in ":" holds more
+// fields. Strings are bare (a letter, then no white space, ":", ",", quote, backslash or bracket)
+// or in double quotes without a backslash. Anything else, including a key that appears twice, is
+// refused rather than read differently from Yarn.
+const YARN_BARE = /^[A-Za-z][^\s:,"\\[\]]*/;
+const YARN_QUOTED = /^"[^"\\\0-\x1f\x7f]*"/;
+
+function yarnToken(rest) {
+    const m = rest.match(YARN_QUOTED) || rest.match(YARN_BARE);
+    if (!m) return null;
+    const raw = m[0];
+    if (raw[0] !== '"' && /^(true|false)/.test(raw)) return raw === 'true' || raw === 'false' ? { value: raw === 'true', len: raw.length } : null;
+    return { value: raw[0] === '"' ? raw.slice(1, -1) : raw, len: raw.length };
+}
+
+/** Yarn 1 lockfile as [{ keys: [string], fields: {…} }] in file order. */
+export function parseYarnV1(text) {
+    if (/\r(?!\n)/.test(text)) throw new LockfileError('yarn.lock: it has a line break this tool does not read');
+    const entries = [];
+    const stack = []; // open objects by indent level; stack[0] is the current entry's fields
+    const seenKeys = new Set();
+    for (const [i, line0] of text.split(/\r?\n/).entries()) {
+        const line = line0.replace(/ +$/, '');
+        const bad = (why) => new LockfileError(`yarn.lock line ${i + 1}: ${why}`);
+        if (!line || /^ *#/.test(line)) continue;
+        const indent = line.match(/^ */)[0].length;
+        if (indent % 2 || /^ *\t/.test(line)) throw bad('indentation is not a multiple of two spaces');
+        const level = indent / 2;
+        if (level > stack.length || level > 4) throw bad('unexpected indentation');
+        stack.length = level;
+        let rest = line.slice(indent);
+        const tokens = [];
+        let opens = false;
+        for (;;) {
+            const t = yarnToken(rest);
+            if (!t || typeof t.value !== 'string') throw bad('not a key this tool reads');
+            tokens.push(t.value);
+            rest = rest.slice(t.len);
+            if (rest === ':') { opens = true; break; }
+            if (rest.startsWith(', ')) { rest = rest.slice(2); continue; }
+            break;
+        }
+        if (opens) {
+            const obj = {};
+            if (level === 0) {
+                for (const k of tokens) { if (seenKeys.has(k)) throw bad(`the key ${k.slice(0, 80)} appears twice`); seenKeys.add(k); }
+                entries.push({ keys: tokens, fields: obj });
+            } else {
+                if (tokens.length !== 1) throw bad('a field has more than one name');
+                if (Object.hasOwn(stack[level - 1], tokens[0])) throw bad('a field appears twice');
+                stack[level - 1][tokens[0]] = obj;
+            }
+            stack.push(obj);
+            continue;
+        }
+        if (level === 0 || tokens.length !== 1 || !rest.startsWith(' ')) throw bad('not a field this tool reads');
+        const v = yarnToken(rest.slice(1));
+        if (!v || rest.length !== 1 + v.len) throw bad('not a value this tool reads');
+        if (Object.hasOwn(stack[level - 1], tokens[0])) throw bad('a field appears twice');
+        stack[level - 1][tokens[0]] = v.value;
+    }
+    return entries;
+}
+
+function parseYarn(text) {
+    const map = new Map();
+    for (const { keys, fields } of parseYarnV1(text)) {
+        if (typeof fields.version !== 'string') continue;
+        // An alias key ("alias@npm:real@^1") installs "real". Every key of one entry names the same package.
+        const names = new Set(); const ranges = [];
+        for (const k of keys) {
+            let [name, range] = splitSpec(k);
+            if (/^npm:/.test(range)) [name, range] = splitSpec(range.slice(4));
+            names.add(name); ranges.push(range);
+        }
+        if (names.size !== 1) throw new LockfileError(`yarn.lock: one entry names different packages (${[...names].slice(0, 3).join(', ').slice(0, 200)})`);
+        const name = [...names][0];
+        const resolved = typeof fields.resolved === 'string' ? fields.resolved : undefined;
+        // Without "resolved", a git, path or URL range still says where the package came from;
+        // only a plain version range has no recorded origin.
+        const other = ranges.find(hasProtocol);
+        let origin; let source;
+        if (resolved) { origin = classifyOrigin(resolved, 'npm'); source = resolved; }
+        else if (other) { origin = protocolOrigin(other); source = other; }
+        else { origin = 'unknown'; source = null; }
+        addVer(map, name, fields.version, { origin, source });
+    }
+    return map;
+}
+
+function parseYarnBerry(text) {
+    let docs;
+    try { docs = yamlDocuments(text); } catch (e) { throw new LockfileError(`yarn.lock did not parse: ${e.message}`); }
+    if (docs.length !== 1 || !docs[0] || typeof docs[0] !== 'object') throw new LockfileError('yarn.lock: expected one YAML document');
+    const map = new Map();
+    for (const [key, v] of Object.entries(docs[0])) {
+        if (key === '__metadata') continue;
+        if (typeof v?.resolution !== 'string') throw new LockfileError('yarn.lock: an entry has no resolution');
+        const [name, ref] = splitSpec(v.resolution);
+        if (/^workspace:/.test(ref)) continue; // the project's own packages
+        // Yarn 2 and later record "name@npm:1.2.3" for every registry package, whichever
+        // registry .yarnrc.yml names, so its origin is unknown.
+        if (/^npm:\d/.test(ref)) { addVer(map, name, ref.slice(4), { origin: 'unknown', source: null }); continue; }
+        addVer(map, name, String(v.version ?? ref), { origin: protocolOrigin(ref), source: ref });
+    }
+    return map;
+}
+
+/** bun.lock is JSON with trailing commas. Comments are not read. */
+export function parseBunText(text) {
+    let out = ''; let inStr = false;
+    for (let i = 0; i < text.length; i++) {
+        const c = text[i];
+        if (inStr) {
+            out += c;
+            if (c === '\\') out += text[++i] ?? '';
+            else if (c === '"') inStr = false;
+            continue;
+        }
+        if (c === '"') { inStr = true; out += c; continue; }
+        if (c === '/') throw new LockfileError('bun.lock: it has a comment, which this tool does not read');
+        if (c === ',') {
+            let j = i + 1;
+            while (j < text.length && ' \t\n\r'.includes(text[j])) j++;
+            if (text[j] === '}' || text[j] === ']') continue;
+        }
+        out += c;
+    }
+    try { return JSON.parse(out); } catch (e) { throw new LockfileError(`bun.lock is not valid: ${e.message}`); }
+}
+
+function isBunLock(text) {
+    try {
+        const doc = parseBunText(text);
+        const first = Object.values(doc?.packages || {})[0];
+        return Boolean(doc?.workspaces) && typeof doc.workspaces === 'object' && (first === undefined || Array.isArray(first));
+    } catch { return false; }
+}
+
+function parseBun(text) {
+    const doc = parseBunText(text);
+    if (!doc || typeof doc.packages !== 'object' || Array.isArray(doc.packages)) throw new LockfileError('bun.lock: it has no "packages" table');
+    const map = new Map();
+    for (const v of Object.values(doc.packages)) {
+        if (!Array.isArray(v) || typeof v[0] !== 'string') throw new LockfileError('bun.lock: a package entry is not a list starting with its name');
+        const [name, ref] = splitSpec(v[0]);
+        if (/^(workspace|root):/.test(ref)) continue; // the project's own packages
+        if (/^\d/.test(ref) && !hasProtocol(ref)) {
+            // The second item is the registry; bun leaves it empty for the default registry,
+            // which bunfig.toml or .npmrc may set to any host.
+            const registry = typeof v[1] === 'string' ? v[1] : '';
+            addVer(map, name, ref, { origin: registry ? classifyOrigin(registry, 'npm') : 'unknown', source: registry || null });
+        } else addVer(map, name, ref, { origin: protocolOrigin(ref), source: ref });
     }
     return map;
 }
@@ -321,8 +499,8 @@ function parseRequirements(text) {
 
 export function parseLockfile(text, hint = '') {
     const type = detectType(text, hint);
-    const map = type === 'npm' ? parseNpm(text) : type === 'pnpm' ? parsePnpm(text) : type === 'uv' ? parseUv(text)
-        : type === 'requirements' ? parseRequirements(text) : parsePoetry(text);
+    const parse = { npm: parseNpm, pnpm: parsePnpm, yarn: parseYarn, 'yarn-berry': parseYarnBerry, bun: parseBun, uv: parseUv, requirements: parseRequirements, poetry: parsePoetry }[type];
+    const map = parse(text);
     return { type, ecosystem: ecosystemOf(type), packages: map };
 }
 

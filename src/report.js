@@ -186,9 +186,15 @@ const OVERALL = {
     error: '⚪ Not analysed — no change could be analysed',
 };
 
+// How the report names a lockfile type; others read "<type> lockfile".
+const TYPE_LABEL = { requirements: 'pip requirements file', yarn: 'Yarn 1 lockfile', 'yarn-berry': 'Yarn 2+ lockfile' };
+
 // Why a lockfile type leaves the origin out, for the assumePublicRegistry hint.
 const UNRECORDED_WHY = {
     pnpm: 'pnpm does not record the registry of packages from the default registry',
+    'yarn-berry': 'Yarn 2 and later do not record the registry of npm packages',
+    yarn: 'this yarn.lock has no "resolved" URL for them',
+    bun: 'bun does not record the registry of packages from the default registry',
     poetry: 'Poetry does not record its default source',
     npm: 'this package-lock.json has no "resolved" URL for them',
     uv: 'this uv.lock has no source for them',
@@ -239,7 +245,7 @@ export function sortResults(results) {
 export function lockfileReport(results, diff, { skipped = [], title = 'Upgrade X-Ray — lockfile report', verdict, coverage } = {}) {
     const c = summaryLine(results);
     const out = [`## ${title}`, '', ...overallLines(verdict, coverage, results),
-        `${diff.type === 'requirements' ? 'pip requirements file' : `${diff.type} lockfile`}: **${diff.updated.length} updated, ${diff.added.length} added, ${diff.removed.length} removed** package versions.`, '',
+        `${TYPE_LABEL[diff.type] || `${diff.type} lockfile`}: **${diff.updated.length} updated, ${diff.added.length} added, ${diff.removed.length} removed** package versions.`, '',
         countsLine(c, results), ''];
     const sorted = sortResults(results);
     // Only packages read in full go into the compact list; partly analysed ones keep their coverage detail.
