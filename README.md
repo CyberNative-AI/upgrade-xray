@@ -91,7 +91,7 @@ The full per-sample results, the selection script and the harness are in [`fixtu
 
 ## Limits
 
-- Static analysis of JavaScript and Python with real parsers (acorn, Python's `ast`). TypeScript sources, files above the 6 MB parser limit and files that do not parse get a pattern scan only; each package lists them. Files above the size limits, encrypted entries and unsupported compression are not read and are listed. Native binaries are reported as new files, not analysed.
+- Static analysis of JavaScript, TypeScript and Python with real parsers (acorn, Python's `ast`). TypeScript is converted to JavaScript with Node's own type stripper first; when that needs Node's transform mode (enums, namespaces), findings in that file carry no line number. JSX/TSX files, files above the 6 MB parser limit and files that do not parse get a pattern scan only; each package lists them. Files above the size limits, encrypted entries and unsupported compression are not read and are listed. Native binaries are reported as new files, not analysed.
 - A version that was removed from the registry cannot be compared, because its files are gone. This includes many well-known compromised releases. On npm, the row says the version was removed and gives its publish date. The row is not charged. PyPI keeps no record of a deleted release, so it is reported as not found.
 - A dependency's age and owner are read from the registry at run time.
 - npm packages are compared as published (one tarball). For PyPI, the best wheel and the sdist are compared separately and merged; very large distributions (over 60 MB) are not analysed.
